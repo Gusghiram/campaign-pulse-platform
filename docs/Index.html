@@ -42,11 +42,11 @@ body {
       </div>
       <div>
         <h1 class="text-xl font-bold tracking-tight">Campaign<span class="gradient-text">Pulse</span></h1>
-        <p class="text-xs text-slate-400">Music Label RRSS & Streaming Intelligence</p>
+        <p class="text-xs text-slate-400">Music Label RRSS &amp; Streaming Intelligence</p>
       </div>
     </div>
     <p class="text-sm text-slate-300 mb-6">
-      Sign in with your authorized label or agency email to access your artists' social and Spotify performance.
+      Sign in with your authorized label or agency credentials to access your artists' social and Spotify performance.
     </p>
     <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
       <div>
@@ -59,6 +59,26 @@ body {
           class="w-full px-4 py-3 rounded-xl bg-slate-900/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
         />
       </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+        <div class="relative">
+          <input
+            type="password"
+            id="password-input"
+            required
+            placeholder="••••••••"
+            class="w-full px-4 py-3 pr-11 rounded-xl bg-slate-900/90 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+          />
+          <button
+            type="button"
+            onclick="togglePasswordVisibility()"
+            aria-label="Toggle password visibility"
+            class="absolute inset-y-0 right-0 px-3.5 flex items-center text-slate-400 hover:text-slate-200 transition"
+          >
+            <i id="password-eye-icon" data-lucide="eye" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
       <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl"></div>
       <button
         type="submit"
@@ -70,25 +90,18 @@ body {
       </button>
     </form>
     <div class="mt-6 pt-6 border-t border-slate-800/80">
-      <p class="text-xs text-slate-400 mb-3 font-medium">Quick Test Accounts:</p>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <button onclick="fillEmail('info@tauromkt.com')" class="px-3 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-left transition">
-          <span class="block font-semibold text-indigo-400">Admin (Tauro)</span>
-          info@tauromkt.com
-        </button>
-        <button onclick="fillEmail('giselle.cortes@warnermusic.com')" class="px-3 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-left transition">
-          <span class="block font-semibold text-sky-400">Warner Music</span>
-          giselle.cortes@...
-        </button>
-        <button onclick="fillEmail('yessai.loera@sonymusic.com')" class="px-3 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-left transition">
-          <span class="block font-semibold text-pink-400">Sony Music</span>
-          yessai.loera@...
-        </button>
-        <button onclick="fillEmail('sharoncantillo@onerpm.com')" class="px-3 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-left transition">
-          <span class="block font-semibold text-emerald-400">ONErpm</span>
-          sharoncantillo@...
-        </button>
-      </div>
+      <p class="text-xs text-slate-400 mb-3 font-medium">Quick Test Account:</p>
+      <button
+        type="button"
+        onclick="fillDemoAccount()"
+        class="w-full px-4 py-2.5 rounded-xl bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 text-left transition flex items-center justify-between"
+      >
+        <div>
+          <span class="block text-xs font-semibold text-indigo-400">Demo Account (Dummy Data)</span>
+          <span class="text-xs text-slate-300">test@tauromkt.com</span>
+        </div>
+        <span class="text-[11px] px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 font-medium">Auto-fill</span>
+      </button>
     </div>
   </div>
 </div>
@@ -110,7 +123,7 @@ body {
           </div>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-3">
+      <div id="global-filters" class="flex flex-wrap items-center gap-3">
         <div>
           <label class="block text-[10px] uppercase tracking-wider text-slate-400 mb-1">Artist</label>
           <select id="filter-artist" onchange="onArtistChange()" class="bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500"></select>
@@ -144,14 +157,19 @@ body {
       <button onclick="switchTab('streams')" id="tab-btn-streams" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-800 flex items-center gap-2">
         <i data-lucide="music" class="w-4 h-4"></i> Spotify Streaming
       </button>
+      <button onclick="switchTab('compare')" id="tab-btn-compare" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+        <i data-lucide="git-compare" class="w-4 h-4"></i> Campaign Comparison
+      </button>
       <button onclick="switchTab('insights')" id="tab-btn-insights" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800/60 text-slate-300 hover:bg-slate-800 flex items-center gap-2">
         <i data-lucide="sparkles" class="w-4 h-4"></i> Campaign Insights
       </button>
     </div>
   </header>
+
   <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
     <!-- TAB 1: RRSS PERFORMANCE -->
     <section id="tab-rrss" class="space-y-6">
+      <!-- KPI CARDS -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div class="glass-card p-4 rounded-xl">
           <span class="text-xs text-slate-400">Active Posts (Unique)</span>
@@ -161,12 +179,12 @@ body {
         <div class="glass-card p-4 rounded-xl">
           <span class="text-xs text-slate-400">Total Views</span>
           <p id="kpi-views" class="text-2xl font-extrabold text-sky-400 mt-1">0</p>
-          <span class="text-[11px] text-slate-500">Video & Reel Plays</span>
+          <span class="text-[11px] text-slate-500">Video &amp; Reel Plays</span>
         </div>
         <div class="glass-card p-4 rounded-xl">
           <span class="text-xs text-slate-400">Total Likes</span>
           <p id="kpi-likes" class="text-2xl font-extrabold text-pink-400 mt-1">0</p>
-          <span class="text-[11px] text-slate-500">Hearts & Reactions</span>
+          <span class="text-[11px] text-slate-500">Hearts &amp; Reactions</span>
         </div>
         <div class="glass-card p-4 rounded-xl">
           <span class="text-xs text-slate-400">Comments</span>
@@ -174,7 +192,7 @@ body {
           <span class="text-[11px] text-slate-500">Audience Replies</span>
         </div>
         <div class="glass-card p-4 rounded-xl">
-          <span class="text-xs text-slate-400">Shares & Saves</span>
+          <span class="text-xs text-slate-400">Shares &amp; Saves</span>
           <p id="kpi-shares-saves" class="text-2xl font-extrabold text-emerald-400 mt-1">0</p>
           <span class="text-[11px] text-slate-500">Virality Signals</span>
         </div>
@@ -184,31 +202,89 @@ body {
           <span class="text-[11px] text-slate-500">Interactions / Views</span>
         </div>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="glass-card p-5 rounded-xl">
-          <h3 class="text-sm font-bold text-white mb-1">Views by Platform</h3>
-          <p class="text-xs text-slate-400 mb-4">Share of voice across social channels</p>
-          <div class="h-64">
-            <canvas id="chart-platform-share"></canvas>
-          </div>
-        </div>
-        <div class="glass-card p-5 rounded-xl lg:col-span-2">
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-sm font-bold text-white">Campaign Snapshot Evolution</h3>
-              <p class="text-xs text-slate-400">Progression of cumulative views & interactions across cut dates</p>
+
+      <!-- ROW 1: VIEWS TILE (DONUT ON LEFT + TWO STACKED LINE CHARTS ON RIGHT) -->
+      <div class="glass-card p-5 rounded-xl">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div class="flex flex-col lg:border-r lg:border-slate-800/80 lg:pr-6">
+            <h3 class="text-sm font-bold text-white mb-1">Views by Platform</h3>
+            <p class="text-xs text-slate-400 mb-4">Share of total views across channels</p>
+            <div class="relative flex-1 min-h-[300px]">
+              <canvas id="chart-platform-share"></canvas>
             </div>
           </div>
-          <div class="h-64">
-            <canvas id="chart-rrss-timeline"></canvas>
+          <div class="lg:col-span-2 flex flex-col gap-5">
+            <div class="border-b border-slate-800/80 pb-5">
+              <h3 class="text-sm font-bold text-white mb-1">Views Snapshot Evolution (Total)</h3>
+              <p class="text-xs text-slate-400 mb-3">Cumulative views across cut dates</p>
+              <div class="relative h-48">
+                <canvas id="chart-rrss-timeline"></canvas>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white mb-1">Views Snapshot Evolution by Platform</h3>
+              <p class="text-xs text-slate-400 mb-3">Cumulative views per platform across cut dates</p>
+              <div class="relative h-48">
+                <canvas id="chart-views-platform-timeline"></canvas>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- ROW 2: INTERACTIONS TILE (DONUT ON LEFT + TWO STACKED LINE CHARTS ON RIGHT) -->
+      <div class="glass-card p-5 rounded-xl">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div class="flex flex-col lg:border-r lg:border-slate-800/80 lg:pr-6">
+            <h3 class="text-sm font-bold text-white mb-1">Interactions by Platform</h3>
+            <p class="text-xs text-slate-400 mb-4">Share of likes, comments, shares &amp; saves</p>
+            <div class="relative flex-1 min-h-[300px]">
+              <canvas id="chart-platform-interactions"></canvas>
+            </div>
+          </div>
+          <div class="lg:col-span-2 flex flex-col gap-5">
+            <div class="border-b border-slate-800/80 pb-5">
+              <h3 class="text-sm font-bold text-white mb-1">Interactions Snapshot Evolution (Total)</h3>
+              <p class="text-xs text-slate-400 mb-3">Cumulative interactions across cut dates</p>
+              <div class="relative h-48">
+                <canvas id="chart-interactions-timeline"></canvas>
+              </div>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white mb-1">Interactions Snapshot Evolution by Platform</h3>
+              <p class="text-xs text-slate-400 mb-3">Cumulative interactions per platform across cut dates</p>
+              <div class="relative h-48">
+                <canvas id="chart-interactions-platform-timeline"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 3: ENGAGEMENT RATE BY PLATFORM (LINE) + ENGAGEMENT METRIC SHARE (HORIZONTAL BAR) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card p-5 rounded-xl">
+          <h3 class="text-sm font-bold text-white mb-1">Engagement Rate by Platform Over Time</h3>
+          <p class="text-xs text-slate-400 mb-4">Historical engagement rate (Interactions / Views) per channel</p>
+          <div class="h-72">
+            <canvas id="chart-er-platform-timeline"></canvas>
+          </div>
+        </div>
+        <div class="glass-card p-5 rounded-xl">
+          <h3 class="text-sm font-bold text-white mb-1">Engagement Breakdown by Metric</h3>
+          <p class="text-xs text-slate-400 mb-4">Volume and % share of total engagement actions</p>
+          <div class="h-72">
+            <canvas id="chart-engagement-breakdown"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- POST-LEVEL CUMULATIVE PERFORMANCE EXPLORER -->
       <div class="glass-card rounded-xl overflow-hidden">
         <div class="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 class="text-sm font-bold text-white">Post-Level Performance Explorer</h3>
-            <p class="text-xs text-slate-400">Showing deduplicated latest metrics per post URL</p>
+            <h3 class="text-sm font-bold text-white">Post-Level Cumulative Performance Explorer</h3>
+            <p class="text-xs text-slate-400">All-time cumulative metrics per post URL across all tracked snapshots</p>
           </div>
           <input
             type="text"
@@ -222,11 +298,10 @@ body {
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-900/90 text-slate-400 sticky top-0">
               <tr>
-                <th class="p-3">Artist & Campaign</th>
+                <th class="p-3">Artist &amp; Campaign</th>
                 <th class="p-3">Platform</th>
-                <th class="p-3">Cut Date</th>
-                <th class="p-3 text-right">Views</th>
-                <th class="p-3 text-right">Likes</th>
+                <th class="p-3 text-right">Cumulative Views</th>
+                <th class="p-3 text-right">Cumulative Likes</th>
                 <th class="p-3 text-right">Comments</th>
                 <th class="p-3 text-right">Shares/Saves</th>
                 <th class="p-3 text-right">Eng. Rate</th>
@@ -272,11 +347,110 @@ body {
       </div>
     </section>
 
-    <!-- TAB 3: QUALITATIVE INSIGHTS -->
+    <!-- TAB 3: CAMPAIGN COMPARISON (MULTI-DAY) -->
+    <section id="tab-compare" class="hidden space-y-6">
+      <div class="glass-card p-6 rounded-xl space-y-5">
+        <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h3 class="text-base font-bold text-white">Campaign Comparison</h3>
+            <p class="text-xs text-slate-400 mt-1">
+              Compare multi-day campaign &amp; artist trajectories aligned from <strong>Day 1</strong> over your selected day window.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-wider text-sky-400 font-bold mb-1">Days to Compare</label>
+              <div class="flex items-center gap-2">
+                <select id="compare-days-preset" onchange="onCompareDaysPresetChange()" class="bg-slate-900 border border-sky-500/50 text-xs text-white font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-sky-400">
+                  <option value="7">First 7 Days</option>
+                  <option value="14" selected>First 14 Days</option>
+                  <option value="21">First 21 Days</option>
+                  <option value="30">First 30 Days</option>
+                  <option value="60">First 60 Days</option>
+                  <option value="90">First 90 Days</option>
+                  <option value="ALL">All Tracked Days</option>
+                  <option value="CUSTOM">Custom Days...</option>
+                </select>
+                <div id="compare-custom-days-wrap" class="hidden flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    id="compare-days-custom"
+                    min="2"
+                    max="365"
+                    value="14"
+                    oninput="renderComparisonView()"
+                    class="w-20 bg-slate-900 border border-sky-500/50 text-xs text-white font-semibold rounded-lg px-2.5 py-2 focus:outline-none focus:border-sky-400"
+                  />
+                  <span class="text-xs text-slate-400">days</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="min-w-[220px]">
+              <label class="block text-[10px] uppercase tracking-wider text-indigo-400 font-bold mb-1">Metric (Select One)</label>
+              <select id="compare-metric" onchange="renderComparisonView()" class="w-full bg-slate-900 border border-indigo-500/50 text-xs text-white font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400">
+                <option value="views">Total Views (RRSS)</option>
+                <option value="streams">Daily Spotify Streams</option>
+                <option value="accumulated_streams">Accumulated Spotify Streams</option>
+                <option value="likes">Total Likes (RRSS)</option>
+                <option value="comments">Total Comments (RRSS)</option>
+                <option value="shares">Shares &amp; Saves (RRSS)</option>
+                <option value="engagement_rate">Engagement Rate (%)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-slate-300">Select Artists &amp; Campaigns to Compare:</span>
+            <div class="flex gap-2 text-[11px]">
+              <button onclick="toggleAllCompareItems(true)" class="text-indigo-400 hover:underline">Select All</button>
+              <span class="text-slate-600">|</span>
+              <button onclick="toggleAllCompareItems(false)" class="text-slate-400 hover:underline">Clear</button>
+            </div>
+          </div>
+          <div id="compare-items-container" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+
+      <div class="glass-card p-5 rounded-xl">
+        <div class="mb-4">
+          <h3 id="compare-chart-title" class="text-sm font-bold text-white">Campaign Comparison Trajectory</h3>
+          <p id="compare-chart-subtitle" class="text-xs text-slate-400">Multi-day progression starting from Day 1 of each campaign</p>
+        </div>
+        <div class="h-80">
+          <canvas id="chart-comparison-main"></canvas>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800">
+          <h3 id="compare-table-title" class="text-sm font-bold text-white">Multi-Day Window Summary</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-slate-900/90 text-slate-400">
+              <tr>
+                <th class="p-3">Artist &amp; Campaign</th>
+                <th class="p-3">Day 1 Date</th>
+                <th class="p-3 text-right">Day 1 Value</th>
+                <th class="p-3 text-right">End of Window</th>
+                <th class="p-3 text-right">Window Growth</th>
+                <th class="p-3 text-right">Peak in Window</th>
+              </tr>
+            </thead>
+            <tbody id="compare-table-body" class="divide-y divide-slate-800/60"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: QUALITATIVE INSIGHTS -->
     <section id="tab-insights" class="hidden space-y-6">
       <div class="glass-card p-5 rounded-xl">
         <h3 class="text-sm font-bold text-white mb-1">Executive Campaign Insights</h3>
-        <p class="text-xs text-slate-400">Manual creative & audience takeaways synced directly from the Insights tab</p>
+        <p class="text-xs text-slate-400">Manual creative &amp; audience takeaways synced directly from the Insights tab</p>
       </div>
       <div id="insights-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
@@ -286,36 +460,208 @@ body {
 <script>
 const APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbxca4d04TP5hqYCsHXpZDkZPJMstiG5sdjr9y9w90G5YiAcH88woUt81p8kityDqaw0/exec';
 let APP_DATA = null;
-let CURRENT_POSTS = [];
+let CUMULATIVE_POSTS = [];
+
 let chartPlatform = null;
 let chartTimeline = null;
+let chartViewsPlatformTimeline = null;
+let chartInteractionsPlatform = null;
+let chartInteractionsTimeline = null;
+let chartInteractionsPlatformTimeline = null;
+let chartErPlatform = null;
+let chartEngagementBar = null;
 let chartStreams = null;
+let chartComparison = null;
 
-function fillEmail(email) {
-  document.getElementById('email-input').value = email;
+let COMPARE_COHORTS = [];
+let SELECTED_COHORT_KEYS = new Set();
+
+const PALETTE = ['#38BDF8', '#F472B6', '#A855F7', '#34D399', '#FBBF24', '#FB7185', '#60A5FA', '#2DD4BF', '#C084FC', '#F97316'];
+const PLATFORM_COLOR_MAP = {
+  tiktok: '#38BDF8',
+  instagram: '#F472B6',
+  youtube: '#A855F7',
+  facebook: '#60A5FA',
+  x: '#94A3B8',
+  spotify: '#34D399'
+};
+
+function getPlatformColor(plat, fallbackIdx) {
+  const key = String(plat || '').trim().toLowerCase();
+  if (PLATFORM_COLOR_MAP[key]) return PLATFORM_COLOR_MAP[key];
+  return PALETTE[fallbackIdx % PALETTE.length];
+}
+
+function fillDemoAccount() {
+  document.getElementById('email-input').value = 'test@tauromkt.com';
+  document.getElementById('password-input').value = 'demo1234';
+}
+
+function togglePasswordVisibility() {
+  const pwdInput = document.getElementById('password-input');
+  const eyeIcon = document.getElementById('password-eye-icon');
+  if (pwdInput.type === 'password') {
+    pwdInput.type = 'text';
+    eyeIcon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    pwdInput.type = 'password';
+    eyeIcon.setAttribute('data-lucide', 'eye');
+  }
+  lucide.createIcons();
 }
 
 function formatNum(num) {
   return Number(num || 0).toLocaleString('en-US');
 }
 
+function getRowInteractions(r) {
+  const sumParts =
+    (Number(r.likes) || 0) +
+    (Number(r.comments) || 0) +
+    (Number(r.shares) || 0) +
+    (Number(r.bookmarks) || 0) +
+    (Number(r.favorites) || 0) +
+    (Number(r.repost) || 0) +
+    (Number(r.reply) || 0) +
+    (Number(r.all_reactions) || 0);
+  return Math.max(Number(r.interactions) || 0, sumParts);
+}
+
+// ============================================================================
+// DUMMY PAYLOAD FOR test@tauromkt.com DEMO ACCOUNT
+// ============================================================================
+function getDummyDemoPayload() {
+  return {
+    authorized: true,
+    user: {
+      email: 'test@tauromkt.com',
+      companies: ['Tauro MKT (Demo Mode)'],
+      allowedArtists: ['Nora Vela', 'Kairo & The Echoes', 'Mateo Solís']
+    },
+    rrss: [
+      // --- Nora Vela: Fuego Lento (Day 1 = 2026-10-01) ---
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-01', url: 'https://www.tiktok.com/@noravela/video/7401001', views: 145000, likes: 18200, comments: 640, shares: 2150, bookmarks: 1420, favorites: 0, repost: 310, reply: 0, all_reactions: 0, interactions: 22720 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-01', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 88000, likes: 11400, comments: 410, shares: 980, bookmarks: 760, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 13550 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-01', url: 'https://youtube.com/shorts/nv_fl_01', views: 52000, likes: 4300, comments: 190, shares: 310, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 4800 },
+
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-04', url: 'https://www.tiktok.com/@noravela/video/7401001', views: 410000, likes: 51200, comments: 1850, shares: 6400, bookmarks: 4120, favorites: 0, repost: 890, reply: 0, all_reactions: 0, interactions: 64460 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-04', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 215000, likes: 26800, comments: 920, shares: 2450, bookmarks: 1890, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 32060 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-04', url: 'https://youtube.com/shorts/nv_fl_01', views: 129000, likes: 9800, comments: 420, shares: 740, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 10960 },
+
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-08', url: 'https://www.tiktok.com/@noravela/video/7401001', views: 790000, likes: 94500, comments: 3210, shares: 12800, bookmarks: 8300, favorites: 0, repost: 1640, reply: 0, all_reactions: 0, interactions: 120450 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-08', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 382000, likes: 44100, comments: 1510, shares: 4320, bookmarks: 3410, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 53340 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-08', url: 'https://youtube.com/shorts/nv_fl_01', views: 248000, likes: 17900, comments: 780, shares: 1410, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 20090 },
+
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-14', url: 'https://www.tiktok.com/@noravela/video/7401001', views: 1240000, likes: 148000, comments: 4920, shares: 19400, bookmarks: 13200, favorites: 0, repost: 2410, reply: 0, all_reactions: 0, interactions: 187930 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-14', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 540000, likes: 61500, comments: 2140, shares: 6180, bookmarks: 4890, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 74710 },
+      { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-14', url: 'https://youtube.com/shorts/nv_fl_01', views: 365000, likes: 25400, comments: 1120, shares: 2190, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 28710 },
+
+      // --- Kairo & The Echoes: Midnight Neon (Day 1 = 2026-10-10) ---
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-10', url: 'https://www.tiktok.com/@kairoechoes/video/8802001', views: 190000, likes: 21400, comments: 810, shares: 3100, bookmarks: 1950, favorites: 0, repost: 420, reply: 0, all_reactions: 0, interactions: 27680 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-10', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 112000, likes: 13900, comments: 530, shares: 1420, bookmarks: 1110, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 16960 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-10', url: 'https://youtube.com/watch?v=ke_mn_01', views: 95000, likes: 8900, comments: 620, shares: 910, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 10430 },
+
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-13', url: 'https://www.tiktok.com/@kairoechoes/video/8802001', views: 520000, likes: 58900, comments: 2140, shares: 8450, bookmarks: 5230, favorites: 0, repost: 1120, reply: 0, all_reactions: 0, interactions: 75840 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-13', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 278000, likes: 33200, comments: 1190, shares: 3410, bookmarks: 2680, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 40480 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-13', url: 'https://youtube.com/watch?v=ke_mn_01', views: 218000, likes: 19400, comments: 1340, shares: 2150, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 22890 },
+
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-17', url: 'https://www.tiktok.com/@kairoechoes/video/8802001', views: 980000, likes: 112000, comments: 3980, shares: 16200, bookmarks: 9840, favorites: 0, repost: 2190, reply: 0, all_reactions: 0, interactions: 144210 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-17', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 495000, likes: 56400, comments: 1980, shares: 5890, bookmarks: 4520, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 68790 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-17', url: 'https://youtube.com/watch?v=ke_mn_01', views: 410000, likes: 34800, comments: 2390, shares: 3920, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 41110 },
+
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-23', url: 'https://www.tiktok.com/@kairoechoes/video/8802001', views: 1580000, likes: 179500, comments: 6120, shares: 25400, bookmarks: 15600, favorites: 0, repost: 3450, reply: 0, all_reactions: 0, interactions: 230070 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-23', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 740000, likes: 82100, comments: 2890, shares: 8640, bookmarks: 6710, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 100340 },
+      { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-23', url: 'https://youtube.com/watch?v=ke_mn_01', views: 625000, likes: 51200, comments: 3410, shares: 5890, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 60500 },
+
+      // --- Mateo Solís: Distancia Cero (Day 1 = 2026-10-15) ---
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-15', url: 'https://www.tiktok.com/@mateosolis/video/9903001', views: 96000, likes: 12800, comments: 490, shares: 1620, bookmarks: 1120, favorites: 0, repost: 240, reply: 0, all_reactions: 0, interactions: 16270 },
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-15', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 64000, likes: 8900, comments: 340, shares: 810, bookmarks: 640, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 10690 },
+
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-18', url: 'https://www.tiktok.com/@mateosolis/video/9903001', views: 285000, likes: 37400, comments: 1390, shares: 4820, bookmarks: 3290, favorites: 0, repost: 690, reply: 0, all_reactions: 0, interactions: 47590 },
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-18', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 172000, likes: 22900, comments: 840, shares: 2120, bookmarks: 1680, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 27540 },
+
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-22', url: 'https://www.tiktok.com/@mateosolis/video/9903001', views: 610000, likes: 79200, comments: 2840, shares: 10400, bookmarks: 7120, favorites: 0, repost: 1480, reply: 0, all_reactions: 0, interactions: 101040 },
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-22', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 345000, likes: 43800, comments: 1590, shares: 4190, bookmarks: 3290, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 52870 },
+
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-28', url: 'https://www.tiktok.com/@mateosolis/video/9903001', views: 940000, likes: 118500, comments: 4190, shares: 15900, bookmarks: 10800, favorites: 0, repost: 2150, reply: 0, all_reactions: 0, interactions: 151540 },
+      { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-28', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 510000, likes: 62400, comments: 2210, shares: 5980, bookmarks: 4710, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 75300 }
+    ],
+    streams: [
+      // Nora Vela - Fuego Lento
+      { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-01', streams: 42500, accumulated_streams: 42500 },
+      { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-04', streams: 68200, accumulated_streams: 214000 },
+      { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-08', streams: 94100, accumulated_streams: 548000 },
+      { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-14', streams: 118400, accumulated_streams: 1192000 },
+
+      // Kairo & The Echoes - Midnight Neon
+      { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-10', streams: 58900, accumulated_streams: 58900 },
+      { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-13', streams: 89400, accumulated_streams: 286000 },
+      { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-17', streams: 132000, accumulated_streams: 745000 },
+      { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-23', streams: 164500, accumulated_streams: 1680000 },
+
+      // Mateo Solís - Distancia Cero
+      { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-15', streams: 31200, accumulated_streams: 31200 },
+      { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-18', streams: 54800, accumulated_streams: 162000 },
+      { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-22', streams: 79600, accumulated_streams: 438000 },
+      { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-28', streams: 102300, accumulated_streams: 985000 }
+    ],
+    insights: [
+      {
+        artist: 'Nora Vela',
+        campaign: 'Fuego Lento',
+        created_at: '2026-10-14',
+        insight: '• Acoustic chorus snippet on TikTok drove a 15.1% engagement rate, outperforming official visualizer clips by 2.3x.\n• High bookmark-to-like ratio (8.9%) indicates strong save intent for user-generated transitions.\n• Spotify daily streams accelerated +38% following the Day-8 creator seeding wave.'
+      },
+      {
+        artist: 'Kairo & The Echoes',
+        campaign: 'Midnight Neon',
+        created_at: '2026-10-23',
+        insight: '• Strongest Day-14 cumulative velocity across the roster (2.94M total social views and 1.68M Spotify streams).\n• YouTube full music video maintained a 9.6% interaction rate with high repeat comment threads.\n• Recommend shifting 20% of paid boost budget toward Instagram Reels retargeting for Mexico & Colombia.'
+      },
+      {
+        artist: 'Mateo Solís',
+        campaign: 'Distancia Cero',
+        created_at: '2026-10-28',
+        insight: '• Lyrics-overlay Reels generated highest share velocity on Instagram (1.17% share-to-view rate).\n• Steady week-over-week growth curve with zero post-launch decay between Day 7 and Day 14.'
+      }
+    ]
+  };
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('email-input').value.trim().toLowerCase();
+  const password = document.getElementById('password-input').value;
   const btn = document.getElementById('login-btn');
   const errBox = document.getElementById('login-error');
   errBox.classList.add('hidden');
+
+  if (!password) {
+    errBox.textContent = 'Please enter your password.';
+    errBox.classList.remove('hidden');
+    return;
+  }
+
   btn.disabled = true;
   btn.innerHTML = '<span>Verifying Governance Access...</span>';
+
+  // Demo account with dummy data for immediate testing
+  if (email === 'test@tauromkt.com') {
+    setTimeout(() => {
+      processAuthResponse(getDummyDemoPayload(), btn, errBox);
+    }, 250);
+    return;
+  }
+
   try {
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(res => processAuthResponse(res, btn, errBox))
         .withFailureHandler(err => showAuthError(err.message, btn, errBox))
-        .getDashboardPayload(email);
+        .getDashboardPayload(email, password);
       return;
     }
-    const url = `${APPS_SCRIPT_API_URL}?api=1&email=${encodeURIComponent(email)}`;
+    const url = `${APPS_SCRIPT_API_URL}?api=1&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
     const response = await fetch(url, { method: 'GET', redirect: 'follow' });
     const data = await response.json();
     processAuthResponse(data, btn, errBox);
@@ -326,9 +672,10 @@ async function handleLogin(e) {
 
 function processAuthResponse(res, btn, errBox) {
   btn.disabled = false;
-  btn.innerHTML = '<span>Access Dashboard</span>';
+  btn.innerHTML = '<span>Access Dashboard</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+  lucide.createIcons();
   if (!res || !res.authorized) {
-    errBox.textContent = (res && res.message) ? res.message : 'Unauthorized user.';
+    errBox.textContent = (res && res.message) ? res.message : 'Invalid email or password.';
     errBox.classList.remove('hidden');
     return;
   }
@@ -337,7 +684,8 @@ function processAuthResponse(res, btn, errBox) {
 
 function showAuthError(msg, btn, errBox) {
   btn.disabled = false;
-  btn.innerHTML = '<span>Access Dashboard</span>';
+  btn.innerHTML = '<span>Access Dashboard</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+  lucide.createIcons();
   errBox.textContent = msg;
   errBox.classList.remove('hidden');
 }
@@ -350,6 +698,7 @@ function initDashboard(data) {
   document.getElementById('user-badge-email').textContent = data.user.email;
   document.getElementById('user-badge-company').textContent =
     data.user.companies.length ? data.user.companies.join(' / ') : 'All Access';
+
   const artistSelect = document.getElementById('filter-artist');
   artistSelect.innerHTML = '<option value="ALL">All Authorized Artists (' + data.user.allowedArtists.length + ')</option>';
   data.user.allowedArtists.forEach(art => {
@@ -358,6 +707,8 @@ function initDashboard(data) {
     opt.textContent = art;
     artistSelect.appendChild(opt);
   });
+
+  buildComparisonCohorts();
   onArtistChange();
   lucide.createIcons();
 }
@@ -366,9 +717,11 @@ function onArtistChange() {
   const selectedArtist = document.getElementById('filter-artist').value;
   const rrss = APP_DATA.rrss.filter(r => selectedArtist === 'ALL' || r.artist === selectedArtist);
   const streams = APP_DATA.streams.filter(s => selectedArtist === 'ALL' || s.artist === selectedArtist);
+
   const campaigns = new Set();
   rrss.forEach(r => { if (r.campaign) campaigns.add(r.campaign); });
   streams.forEach(s => { if (s.song) campaigns.add(s.song); });
+
   const campSelect = document.getElementById('filter-campaign');
   campSelect.innerHTML = '<option value="ALL">All Campaigns & Songs</option>';
   Array.from(campaigns).sort().forEach(c => {
@@ -377,6 +730,7 @@ function onArtistChange() {
     opt.textContent = c;
     campSelect.appendChild(opt);
   });
+
   const platforms = new Set(rrss.map(r => r.platform));
   const platSelect = document.getElementById('filter-platform');
   platSelect.innerHTML = '<option value="ALL">All Platforms</option>';
@@ -386,15 +740,17 @@ function onArtistChange() {
     opt.textContent = p;
     platSelect.appendChild(opt);
   });
+
   const dates = new Set(rrss.map(r => r.created_at));
   const dateSelect = document.getElementById('filter-date');
   dateSelect.innerHTML = '<option value="LATEST">Latest Snapshot (Deduplicated)</option>';
-  Array.from(dates).sort().forEach(d => {
+  Array.from(dates).sort().reverse().forEach(d => {
     const opt = document.createElement('option');
     opt.value = d;
     opt.textContent = 'Snapshot: ' + d;
     dateSelect.appendChild(opt);
   });
+
   applyFilters();
 }
 
@@ -403,26 +759,65 @@ function applyFilters() {
   const campaign = document.getElementById('filter-campaign').value;
   const platform = document.getElementById('filter-platform').value;
   const dateMode = document.getElementById('filter-date').value;
+
   const rrssAllDates = APP_DATA.rrss.filter(r =>
     (artist === 'ALL' || r.artist === artist) &&
     (campaign === 'ALL' || r.campaign === campaign) &&
     (platform === 'ALL' || r.platform === platform)
   );
-  const urlMap = new Map();
+
+  // Deduplicated posts for KPIs & Donut Charts (respecting Snapshot Date selector)
+  const snapshotMap = new Map();
   rrssAllDates.forEach(r => {
     if (dateMode !== 'LATEST' && r.created_at !== dateMode) return;
     const key = r.url || `${r.artist}-${r.campaign}-${Math.random()}`;
-    if (!urlMap.has(key) || r.created_at >= urlMap.get(key).created_at) {
-      urlMap.set(key, r);
+    if (!snapshotMap.has(key) || r.created_at >= snapshotMap.get(key).created_at) {
+      snapshotMap.set(key, r);
     }
   });
-  CURRENT_POSTS = Array.from(urlMap.values()).sort((a, b) => b.views - a.views);
-  updateRRSSView(CURRENT_POSTS, rrssAllDates);
+  const activeDedupPosts = Array.from(snapshotMap.values());
+
+  // All-time cumulative aggregation per post URL across ALL cut dates (for Post Explorer Table)
+  const cumulativeMap = new Map();
+  rrssAllDates.forEach(r => {
+    const key = r.url || `${r.artist}-${r.campaign}-${Math.random()}`;
+    const rowInteractions = getRowInteractions(r);
+    if (!cumulativeMap.has(key)) {
+      cumulativeMap.set(key, {
+        artist: r.artist,
+        campaign: r.campaign,
+        platform: r.platform,
+        platformRaw: r.platformRaw,
+        url: r.url,
+        views: Number(r.views) || 0,
+        likes: Number(r.likes) || 0,
+        comments: Number(r.comments) || 0,
+        shares: Number(r.shares) || 0,
+        bookmarks: Number(r.bookmarks) || 0,
+        favorites: Number(r.favorites) || 0,
+        interactions: rowInteractions
+      });
+    } else {
+      const existing = cumulativeMap.get(key);
+      existing.views = Math.max(existing.views, Number(r.views) || 0);
+      existing.likes = Math.max(existing.likes, Number(r.likes) || 0);
+      existing.comments = Math.max(existing.comments, Number(r.comments) || 0);
+      existing.shares = Math.max(existing.shares, Number(r.shares) || 0);
+      existing.bookmarks = Math.max(existing.bookmarks, Number(r.bookmarks) || 0);
+      existing.favorites = Math.max(existing.favorites, Number(r.favorites) || 0);
+      existing.interactions = Math.max(existing.interactions, rowInteractions);
+    }
+  });
+  CUMULATIVE_POSTS = Array.from(cumulativeMap.values()).sort((a, b) => b.views - a.views);
+
+  updateRRSSView(activeDedupPosts, rrssAllDates);
+
   const streamsFiltered = APP_DATA.streams.filter(s =>
     (artist === 'ALL' || s.artist === artist) &&
     (campaign === 'ALL' || s.song === campaign)
   );
   updateStreamsView(streamsFiltered);
+
   const insightsFiltered = APP_DATA.insights.filter(i =>
     (artist === 'ALL' || i.artist === artist) &&
     (campaign === 'ALL' || i.campaign === campaign)
@@ -431,12 +826,13 @@ function applyFilters() {
 }
 
 function updateRRSSView(dedupPosts, allDateRows) {
-  const totalViews = dedupPosts.reduce((s, r) => s + r.views, 0);
-  const totalLikes = dedupPosts.reduce((s, r) => s + r.likes, 0);
-  const totalComments = dedupPosts.reduce((s, r) => s + r.comments, 0);
-  const totalSharesSaves = dedupPosts.reduce((s, r) => s + r.shares + r.bookmarks + r.favorites, 0);
-  const totalInteractions = dedupPosts.reduce((s, r) => s + r.interactions, 0);
+  const totalViews = dedupPosts.reduce((s, r) => s + (Number(r.views) || 0), 0);
+  const totalLikes = dedupPosts.reduce((s, r) => s + (Number(r.likes) || 0), 0);
+  const totalComments = dedupPosts.reduce((s, r) => s + (Number(r.comments) || 0), 0);
+  const totalSharesSaves = dedupPosts.reduce((s, r) => s + (Number(r.shares) || 0) + (Number(r.bookmarks) || 0) + (Number(r.favorites) || 0), 0);
+  const totalInteractions = dedupPosts.reduce((s, r) => s + getRowInteractions(r), 0);
   const er = totalViews > 0 ? ((totalInteractions / totalViews) * 100).toFixed(2) : '0.00';
+
   document.getElementById('kpi-posts').textContent = formatNum(dedupPosts.length);
   document.getElementById('kpi-snapshots-note').textContent = `${formatNum(allDateRows.length)} total logs`;
   document.getElementById('kpi-views').textContent = formatNum(totalViews);
@@ -444,18 +840,44 @@ function updateRRSSView(dedupPosts, allDateRows) {
   document.getElementById('kpi-comments').textContent = formatNum(totalComments);
   document.getElementById('kpi-shares-saves').textContent = formatNum(totalSharesSaves);
   document.getElementById('kpi-er').textContent = er + '%';
-  const platTotals = {};
-  dedupPosts.forEach(r => {
-    platTotals[r.platform] = (platTotals[r.platform] || 0) + r.views;
+
+  const dateGroups = {};
+  const platDateGroups = {};
+  const allPlatformsSet = new Set();
+
+  allDateRows.forEach(r => {
+    const d = r.created_at;
+    const p = r.platform || 'Other';
+    const v = Number(r.views) || 0;
+    const inter = getRowInteractions(r);
+
+    allPlatformsSet.add(p);
+    if (!dateGroups[d]) dateGroups[d] = { views: 0, interactions: 0 };
+    dateGroups[d].views += v;
+    dateGroups[d].interactions += inter;
+
+    if (!platDateGroups[p]) platDateGroups[p] = {};
+    if (!platDateGroups[p][d]) platDateGroups[p][d] = { views: 0, interactions: 0 };
+    platDateGroups[p][d].views += v;
+    platDateGroups[p][d].interactions += inter;
   });
+  const sortedDates = Object.keys(dateGroups).sort();
+  const sortedPlats = Array.from(allPlatformsSet).sort();
+
+  // --- 1A. VIEWS BY PLATFORM DONUT ---
+  const platViewTotals = {};
+  dedupPosts.forEach(r => {
+    platViewTotals[r.platform] = (platViewTotals[r.platform] || 0) + (Number(r.views) || 0);
+  });
+  const viewDonutLabels = Object.keys(platViewTotals);
   if (chartPlatform) chartPlatform.destroy();
   chartPlatform = new Chart(document.getElementById('chart-platform-share'), {
     type: 'doughnut',
     data: {
-      labels: Object.keys(platTotals),
+      labels: viewDonutLabels,
       datasets: [{
-        data: Object.values(platTotals),
-        backgroundColor: ['#38BDF8', '#F472B6', '#A855F7', '#34D399', '#FBBF24', '#94A3B8'],
+        data: Object.values(platViewTotals),
+        backgroundColor: viewDonutLabels.map((p, idx) => getPlatformColor(p, idx)),
         borderWidth: 0
       }]
     },
@@ -467,13 +889,8 @@ function updateRRSSView(dedupPosts, allDateRows) {
       }
     }
   });
-  const dateGroups = {};
-  allDateRows.forEach(r => {
-    if (!dateGroups[r.created_at]) dateGroups[r.created_at] = { views: 0, interactions: 0 };
-    dateGroups[r.created_at].views += r.views;
-    dateGroups[r.created_at].interactions += r.interactions;
-  });
-  const sortedDates = Object.keys(dateGroups).sort();
+
+  // --- 1B. VIEWS SNAPSHOT EVOLUTION (TOTAL CUMULATIVE) ---
   if (chartTimeline) chartTimeline.destroy();
   chartTimeline = new Chart(document.getElementById('chart-rrss-timeline'), {
     type: 'line',
@@ -481,18 +898,12 @@ function updateRRSSView(dedupPosts, allDateRows) {
       labels: sortedDates,
       datasets: [
         {
-          label: 'Snapshot Views',
+          label: 'Total Cumulative Views',
           data: sortedDates.map(d => dateGroups[d].views),
           borderColor: '#38BDF8',
           backgroundColor: 'rgba(56, 189, 248, 0.15)',
-          fill: true,
-          tension: 0.35
-        },
-        {
-          label: 'Snapshot Interactions',
-          data: sortedDates.map(d => dateGroups[d].interactions),
-          borderColor: '#F472B6',
-          backgroundColor: 'rgba(244, 114, 182, 0.1)',
+          pointBackgroundColor: '#38BDF8',
+          pointRadius: 4,
           fill: true,
           tension: 0.35
         }
@@ -508,17 +919,243 @@ function updateRRSSView(dedupPosts, allDateRows) {
       plugins: { legend: { labels: { color: '#CBD5E1' } } }
     }
   });
+
+  // --- 1C. VIEWS SNAPSHOT EVOLUTION BY PLATFORM ---
+  const viewsPlatformDatasets = sortedPlats.map((plat, idx) => {
+    const color = getPlatformColor(plat, idx);
+    return {
+      label: plat,
+      data: sortedDates.map(d => {
+        const cell = platDateGroups[plat] && platDateGroups[plat][d];
+        return cell ? cell.views : null;
+      }),
+      borderColor: color,
+      backgroundColor: color,
+      pointRadius: 4,
+      tension: 0.35,
+      spanGaps: true
+    };
+  });
+
+  if (chartViewsPlatformTimeline) chartViewsPlatformTimeline.destroy();
+  chartViewsPlatformTimeline = new Chart(document.getElementById('chart-views-platform-timeline'), {
+    type: 'line',
+    data: {
+      labels: sortedDates,
+      datasets: viewsPlatformDatasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      plugins: { legend: { labels: { color: '#CBD5E1' } } }
+    }
+  });
+
+  // --- 2A. INTERACTIONS BY PLATFORM DONUT ---
+  const platInteractionTotals = {};
+  dedupPosts.forEach(r => {
+    platInteractionTotals[r.platform] = (platInteractionTotals[r.platform] || 0) + getRowInteractions(r);
+  });
+  const interDonutLabels = Object.keys(platInteractionTotals);
+  if (chartInteractionsPlatform) chartInteractionsPlatform.destroy();
+  chartInteractionsPlatform = new Chart(document.getElementById('chart-platform-interactions'), {
+    type: 'doughnut',
+    data: {
+      labels: interDonutLabels,
+      datasets: [{
+        data: Object.values(platInteractionTotals),
+        backgroundColor: interDonutLabels.map((p, idx) => getPlatformColor(p, idx)),
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#CBD5E1', font: { size: 11 } } }
+      }
+    }
+  });
+
+  // --- 2B. INTERACTIONS SNAPSHOT EVOLUTION (TOTAL CUMULATIVE) ---
+  if (chartInteractionsTimeline) chartInteractionsTimeline.destroy();
+  chartInteractionsTimeline = new Chart(document.getElementById('chart-interactions-timeline'), {
+    type: 'line',
+    data: {
+      labels: sortedDates,
+      datasets: [
+        {
+          label: 'Total Cumulative Interactions',
+          data: sortedDates.map(d => dateGroups[d].interactions),
+          borderColor: '#F472B6',
+          backgroundColor: 'rgba(244, 114, 182, 0.15)',
+          pointBackgroundColor: '#F472B6',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.35
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      plugins: { legend: { labels: { color: '#CBD5E1' } } }
+    }
+  });
+
+  // --- 2C. INTERACTIONS SNAPSHOT EVOLUTION BY PLATFORM ---
+  const interactionsPlatformDatasets = sortedPlats.map((plat, idx) => {
+    const color = getPlatformColor(plat, idx);
+    return {
+      label: plat,
+      data: sortedDates.map(d => {
+        const cell = platDateGroups[plat] && platDateGroups[plat][d];
+        return cell ? cell.interactions : null;
+      }),
+      borderColor: color,
+      backgroundColor: color,
+      pointRadius: 4,
+      tension: 0.35,
+      spanGaps: true
+    };
+  });
+
+  if (chartInteractionsPlatformTimeline) chartInteractionsPlatformTimeline.destroy();
+  chartInteractionsPlatformTimeline = new Chart(document.getElementById('chart-interactions-platform-timeline'), {
+    type: 'line',
+    data: {
+      labels: sortedDates,
+      datasets: interactionsPlatformDatasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      plugins: { legend: { labels: { color: '#CBD5E1' } } }
+    }
+  });
+
+  // --- 3. ENGAGEMENT RATE BY PLATFORM OVER TIME ---
+  const erDatasets = sortedPlats.map((plat, idx) => {
+    const color = getPlatformColor(plat, idx);
+    return {
+      label: plat,
+      data: sortedDates.map(d => {
+        const cell = platDateGroups[plat] && platDateGroups[plat][d];
+        if (!cell || cell.views <= 0) return null;
+        return Number(((cell.interactions / cell.views) * 100).toFixed(2));
+      }),
+      borderColor: color,
+      backgroundColor: color,
+      pointRadius: 4,
+      tension: 0.3,
+      spanGaps: true
+    };
+  });
+
+  if (chartErPlatform) chartErPlatform.destroy();
+  chartErPlatform = new Chart(document.getElementById('chart-er-platform-timeline'), {
+    type: 'line',
+    data: {
+      labels: sortedDates,
+      datasets: erDatasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: {
+          ticks: {
+            color: '#94A3B8',
+            callback: val => val + '%'
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: '#CBD5E1' } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+          }
+        }
+      }
+    }
+  });
+
+  // --- 4. ENGAGEMENT METRICS BREAKDOWN (HORIZONTAL BAR WITH % + COUNT TOOLTIP) ---
+  const metricTotals = [
+    { label: 'Likes', value: dedupPosts.reduce((s, r) => s + (Number(r.likes) || 0), 0), color: '#F472B6' },
+    { label: 'Shares', value: dedupPosts.reduce((s, r) => s + (Number(r.shares) || 0), 0), color: '#34D399' },
+    { label: 'Saves / Bookmarks', value: dedupPosts.reduce((s, r) => s + (Number(r.bookmarks) || 0) + (Number(r.favorites) || 0), 0), color: '#38BDF8' },
+    { label: 'Comments', value: dedupPosts.reduce((s, r) => s + (Number(r.comments) || 0), 0), color: '#FBBF24' },
+    { label: 'Reposts', value: dedupPosts.reduce((s, r) => s + (Number(r.repost) || 0), 0), color: '#A855F7' },
+    { label: 'Replies', value: dedupPosts.reduce((s, r) => s + (Number(r.reply) || 0), 0), color: '#60A5FA' },
+    { label: 'Other Reactions', value: dedupPosts.reduce((s, r) => s + (Number(r.all_reactions) || 0), 0), color: '#94A3B8' }
+  ]
+    .filter(m => m.value > 0 || ['Likes', 'Shares', 'Saves / Bookmarks', 'Comments'].includes(m.label))
+    .sort((a, b) => b.value - a.value);
+
+  const sumEngagementMetrics = metricTotals.reduce((s, m) => s + m.value, 0);
+
+  if (chartEngagementBar) chartEngagementBar.destroy();
+  chartEngagementBar = new Chart(document.getElementById('chart-engagement-breakdown'), {
+    type: 'bar',
+    data: {
+      labels: metricTotals.map(m => m.label),
+      datasets: [{
+        label: 'Interactions',
+        data: metricTotals.map(m => m.value),
+        backgroundColor: metricTotals.map(m => m.color),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#E2E8F0', font: { weight: '600' } }, grid: { display: false } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const val = ctx.parsed.x || 0;
+              const pct = sumEngagementMetrics > 0 ? ((val / sumEngagementMetrics) * 100).toFixed(2) : '0.00';
+              return ` ${formatNum(val)} (${pct}% of total)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
   renderPostsTable();
 }
 
 function renderPostsTable() {
   const q = (document.getElementById('post-search').value || '').toLowerCase();
   const tbody = document.getElementById('posts-table-body');
-  const filtered = CURRENT_POSTS.filter(r =>
-    r.url.toLowerCase().includes(q) ||
-    r.campaign.toLowerCase().includes(q) ||
-    r.artist.toLowerCase().includes(q) ||
-    r.platform.toLowerCase().includes(q)
+  const filtered = CUMULATIVE_POSTS.filter(r =>
+    (r.url || '').toLowerCase().includes(q) ||
+    (r.campaign || '').toLowerCase().includes(q) ||
+    (r.artist || '').toLowerCase().includes(q) ||
+    (r.platform || '').toLowerCase().includes(q)
   );
   tbody.innerHTML = filtered.slice(0, 100).map(r => {
     const er = r.views > 0 ? ((r.interactions / r.views) * 100).toFixed(1) + '%' : '-';
@@ -533,11 +1170,10 @@ function renderPostsTable() {
             ${r.platformRaw || r.platform}
           </span>
         </td>
-        <td class="p-3 text-slate-300">${r.created_at}</td>
         <td class="p-3 text-right font-semibold text-sky-400">${formatNum(r.views)}</td>
         <td class="p-3 text-right text-pink-400">${formatNum(r.likes)}</td>
         <td class="p-3 text-right text-amber-400">${formatNum(r.comments)}</td>
-        <td class="p-3 text-right text-emerald-400">${formatNum(r.shares + r.bookmarks)}</td>
+        <td class="p-3 text-right text-emerald-400">${formatNum(r.shares + r.bookmarks + r.favorites)}</td>
         <td class="p-3 text-right font-semibold text-purple-300">${er}</td>
         <td class="p-3 text-center">
           <a href="${r.url}" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Open ↗</a>
@@ -597,6 +1233,316 @@ function updateStreamsView(streams) {
   });
 }
 
+// ============================================================================
+// CAMPAIGN COMPARISON TAB LOGIC (MULTI-DAY WINDOW)
+// ============================================================================
+function parseIsoDateUTC(dateStr) {
+  const parts = String(dateStr || '').slice(0, 10).split('-');
+  if (parts.length !== 3) return null;
+  return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+}
+
+function onCompareDaysPresetChange() {
+  const preset = document.getElementById('compare-days-preset').value;
+  const customWrap = document.getElementById('compare-custom-days-wrap');
+  const customInput = document.getElementById('compare-days-custom');
+
+  if (preset === 'CUSTOM') {
+    customWrap.classList.remove('hidden');
+  } else {
+    customWrap.classList.add('hidden');
+    if (preset !== 'ALL') {
+      customInput.value = preset;
+    }
+  }
+  renderComparisonView();
+}
+
+function buildComparisonCohorts() {
+  const cohortMap = new Map();
+
+  APP_DATA.rrss.forEach(r => {
+    const artist = r.artist || 'Unknown Artist';
+    const campaign = r.campaign || 'General Campaign';
+    const key = `${artist}|||${campaign}`;
+    if (!cohortMap.has(key)) {
+      cohortMap.set(key, { key, artist, campaign, rrssByDate: {}, streamsByDate: {} });
+    }
+    const c = cohortMap.get(key);
+    const d = r.created_at;
+    if (!d) return;
+    if (!c.rrssByDate[d]) {
+      c.rrssByDate[d] = { views: 0, likes: 0, comments: 0, shares: 0, interactions: 0 };
+    }
+    c.rrssByDate[d].views += Number(r.views) || 0;
+    c.rrssByDate[d].likes += Number(r.likes) || 0;
+    c.rrssByDate[d].comments += Number(r.comments) || 0;
+    c.rrssByDate[d].shares += (Number(r.shares) || 0) + (Number(r.bookmarks) || 0) + (Number(r.favorites) || 0);
+    c.rrssByDate[d].interactions += getRowInteractions(r);
+  });
+
+  APP_DATA.streams.forEach(s => {
+    const artist = s.artist || 'Unknown Artist';
+    const campaign = s.song || 'General Track';
+    const key = `${artist}|||${campaign}`;
+    if (!cohortMap.has(key)) {
+      cohortMap.set(key, { key, artist, campaign, rrssByDate: {}, streamsByDate: {} });
+    }
+    const c = cohortMap.get(key);
+    const d = s.date;
+    if (!d) return;
+    if (!c.streamsByDate[d]) {
+      c.streamsByDate[d] = { streams: 0, accumulated_streams: 0 };
+    }
+    c.streamsByDate[d].streams += Number(s.streams) || 0;
+    c.streamsByDate[d].accumulated_streams = Math.max(c.streamsByDate[d].accumulated_streams, Number(s.accumulated_streams) || 0);
+  });
+
+  COMPARE_COHORTS = Array.from(cohortMap.values()).sort((a, b) =>
+    a.artist.localeCompare(b.artist) || a.campaign.localeCompare(b.campaign)
+  );
+
+  SELECTED_COHORT_KEYS = new Set(COMPARE_COHORTS.slice(0, 3).map(c => c.key));
+  renderCompareSelectorPills();
+  renderComparisonView();
+}
+
+function renderCompareSelectorPills() {
+  const container = document.getElementById('compare-items-container');
+  if (!COMPARE_COHORTS.length) {
+    container.innerHTML = '<span class="text-xs text-slate-400">No campaigns or artists available to compare.</span>';
+    return;
+  }
+  container.innerHTML = COMPARE_COHORTS.map((c, idx) => {
+    const active = SELECTED_COHORT_KEYS.has(c.key);
+    const color = PALETTE[idx % PALETTE.length];
+    return `
+      <button
+        type="button"
+        onclick="toggleCompareCohort('${c.key.replace(/'/g, "\\'")}')"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium border transition flex items-center gap-2 ${
+          active
+            ? 'bg-slate-800 border-indigo-500 text-white shadow-sm'
+            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+        }"
+      >
+        <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${active ? color : '#475569'}"></span>
+        <span><strong class="text-slate-200">${c.artist}</strong> — ${c.campaign}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function toggleCompareCohort(key) {
+  if (SELECTED_COHORT_KEYS.has(key)) {
+    SELECTED_COHORT_KEYS.delete(key);
+  } else {
+    SELECTED_COHORT_KEYS.add(key);
+  }
+  renderCompareSelectorPills();
+  renderComparisonView();
+}
+
+function toggleAllCompareItems(selectAll) {
+  if (selectAll) {
+    SELECTED_COHORT_KEYS = new Set(COMPARE_COHORTS.map(c => c.key));
+  } else {
+    SELECTED_COHORT_KEYS.clear();
+  }
+  renderCompareSelectorPills();
+  renderComparisonView();
+}
+
+function renderComparisonView() {
+  const metric = document.getElementById('compare-metric').value;
+  const preset = document.getElementById('compare-days-preset').value;
+  const customDays = Math.max(2, Number(document.getElementById('compare-days-custom').value) || 14);
+
+  const metricLabels = {
+    views: 'Total Views',
+    streams: 'Daily Spotify Streams',
+    accumulated_streams: 'Accumulated Spotify Streams',
+    likes: 'Total Likes',
+    comments: 'Total Comments',
+    shares: 'Shares & Saves',
+    engagement_rate: 'Engagement Rate (%)'
+  };
+  const isStreamMetric = metric === 'streams' || metric === 'accumulated_streams';
+  const isPctMetric = metric === 'engagement_rate';
+
+  let maxObservedDay = 2;
+  const seriesList = [];
+  const summaryRows = [];
+
+  COMPARE_COHORTS.forEach((cohort, idx) => {
+    if (!SELECTED_COHORT_KEYS.has(cohort.key)) return;
+
+    const sourceMap = isStreamMetric ? cohort.streamsByDate : cohort.rrssByDate;
+    const dates = Object.keys(sourceMap).sort();
+    if (!dates.length) {
+      summaryRows.push({
+        label: `${cohort.artist} — ${cohort.campaign}`,
+        day1Date: 'No data',
+        day1Val: null,
+        endVal: null,
+        endDayNum: null,
+        peakVal: null
+      });
+      return;
+    }
+
+    const startMs = parseIsoDateUTC(dates[0]);
+    const dayPoints = new Map();
+
+    dates.forEach(d => {
+      const currMs = parseIsoDateUTC(d);
+      const dayNum = startMs !== null && currMs !== null
+        ? Math.max(1, Math.round((currMs - startMs) / 86400000) + 1)
+        : 1;
+
+      if (preset !== 'ALL' && dayNum > customDays) return;
+      if (dayNum > maxObservedDay) maxObservedDay = dayNum;
+
+      const rec = sourceMap[d];
+      let val = 0;
+      if (metric === 'engagement_rate') {
+        val = rec.views > 0 ? Number(((rec.interactions / rec.views) * 100).toFixed(2)) : 0;
+      } else {
+        val = Number(rec[metric]) || 0;
+      }
+
+      dayPoints.set(dayNum, val);
+    });
+
+    if (!dayPoints.size) {
+      summaryRows.push({
+        label: `${cohort.artist} — ${cohort.campaign}`,
+        day1Date: dates[0],
+        day1Val: null,
+        endVal: null,
+        endDayNum: null,
+        peakVal: null
+      });
+      return;
+    }
+
+    const sortedDayNums = Array.from(dayPoints.keys()).sort((a, b) => a - b);
+    const firstDayNum = sortedDayNums[0];
+    const lastDayNum = sortedDayNums[sortedDayNums.length - 1];
+    let peakVal = -Infinity;
+    sortedDayNums.forEach(dn => {
+      const v = dayPoints.get(dn);
+      if (v > peakVal) peakVal = v;
+    });
+
+    seriesList.push({
+      label: `${cohort.artist} — ${cohort.campaign}`,
+      color: PALETTE[idx % PALETTE.length],
+      dayPoints
+    });
+
+    summaryRows.push({
+      label: `${cohort.artist} — ${cohort.campaign}`,
+      day1Date: dates[0],
+      day1Val: dayPoints.get(firstDayNum),
+      endVal: dayPoints.get(lastDayNum),
+      endDayNum: lastDayNum,
+      peakVal: peakVal === -Infinity ? 0 : peakVal
+    });
+  });
+
+  const windowDays = preset === 'ALL' ? maxObservedDay : customDays;
+  const windowLabel = preset === 'ALL' ? `All Tracked Days (Day 1 – Day ${windowDays})` : `First ${windowDays} Days (Day 1 – Day ${windowDays})`;
+
+  document.getElementById('compare-chart-title').textContent = `Campaign Comparison: ${metricLabels[metric]} — ${windowLabel}`;
+  document.getElementById('compare-chart-subtitle').textContent = `Multi-day trajectory comparing selected campaigns across Days 1 to ${windowDays}`;
+  document.getElementById('compare-table-title').textContent = `Campaign Comparison Summary (${windowLabel})`;
+
+  const dayLabels = Array.from({ length: windowDays }, (_, i) => `Day ${i + 1}`);
+  const datasets = seriesList.map(s => ({
+    label: s.label,
+    data: Array.from({ length: windowDays }, (_, i) => {
+      const dayNum = i + 1;
+      return s.dayPoints.has(dayNum) ? s.dayPoints.get(dayNum) : null;
+    }),
+    borderColor: s.color,
+    backgroundColor: s.color,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    tension: 0.3,
+    spanGaps: true
+  }));
+
+  if (chartComparison) chartComparison.destroy();
+  chartComparison = new Chart(document.getElementById('chart-comparison-main'), {
+    type: 'line',
+    data: {
+      labels: dayLabels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: {
+          ticks: {
+            color: '#94A3B8',
+            callback: val => isPctMetric ? val + '%' : formatNum(val)
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: '#CBD5E1' } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y;
+              return `${ctx.dataset.label}: ${isPctMetric ? v + '%' : formatNum(v)}`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const formatMetricVal = v => {
+    if (v === null || v === undefined) return '-';
+    return isPctMetric ? `${v}%` : formatNum(v);
+  };
+
+  document.getElementById('compare-table-body').innerHTML = summaryRows.map(row => {
+    let growthHtml = '<span class="text-slate-500">-</span>';
+    if (row.day1Val !== null && row.endVal !== null && row.endDayNum > 1) {
+      const diff = row.endVal - row.day1Val;
+      const sign = diff > 0 ? '+' : '';
+      const colorClass = diff > 0 ? 'text-emerald-400' : (diff < 0 ? 'text-rose-400' : 'text-slate-400');
+      if (isPctMetric) {
+        growthHtml = `<span class="${colorClass}">${sign}${diff.toFixed(2)} pts</span>`;
+      } else {
+        const pct = row.day1Val > 0 ? ` (${sign}${((diff / row.day1Val) * 100).toFixed(1)}%)` : '';
+        growthHtml = `<span class="${colorClass}">${sign}${formatNum(diff)}${pct}</span>`;
+      }
+    }
+
+    const endCol = row.endVal !== null
+      ? `${formatMetricVal(row.endVal)} <span class="text-[10px] text-slate-400">(Day ${row.endDayNum})</span>`
+      : '-';
+
+    return `
+      <tr class="hover:bg-slate-800/40 transition">
+        <td class="p-3 font-semibold text-white">${row.label}</td>
+        <td class="p-3 text-slate-400">${row.day1Date}</td>
+        <td class="p-3 text-right font-semibold text-sky-400">${formatMetricVal(row.day1Val)}</td>
+        <td class="p-3 text-right font-semibold text-indigo-300">${endCol}</td>
+        <td class="p-3 text-right font-semibold">${growthHtml}</td>
+        <td class="p-3 text-right font-semibold text-amber-400">${formatMetricVal(row.peakVal)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
 function updateInsightsView(insights) {
   const container = document.getElementById('insights-container');
   if (!insights.length) {
@@ -620,7 +1566,7 @@ function updateInsightsView(insights) {
 }
 
 function switchTab(tab) {
-  ['rrss', 'streams', 'insights'].forEach(t => {
+  ['rrss', 'streams', 'compare', 'insights'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
     const btn = document.getElementById('tab-btn-' + t);
     if (t === tab) {
@@ -633,6 +1579,7 @@ function switchTab(tab) {
 
 function logout() {
   APP_DATA = null;
+  document.getElementById('password-input').value = '';
   document.getElementById('dashboard-view').classList.add('hidden');
   document.getElementById('login-view').classList.remove('hidden');
 }
