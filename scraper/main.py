@@ -228,17 +228,37 @@ def scrape_tiktok(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
     soup = BeautifulSoup(html, "html.parser")
     meta = None
-    for script in soup.find_all("script"):
-        if not script.string:
+
+    # Check the primary hydration script first, then fall back to all <script> tags
+    scripts = []
+    rehydration_tag = soup.find("script", id="__UNIVERSAL_DATA_FOR_REHYDRATION__")
+    if rehydration_tag:
+        scripts.append(rehydration_tag)
+    scripts.extend(soup.find_all("script"))
+
+    for script in scripts:
+        # Use .get_text() instead of .string so tags with comments aren't skipped
+        raw_text = script.get_text(strip=True)
+        if not raw_text or "__DEFAULT_SCOPE__" not in raw_text:
             continue
         try:
-            payload = json.loads(script.string)
-            meta = payload["__DEFAULT_SCOPE__"]["webapp.video-detail"]["itemInfo"]["itemStruct"]["statsV2"]
-            break
+            payload = json.loads(raw_text)
+            item_struct = (
+                payload.get("__DEFAULT_SCOPE__", {})
+                .get("webapp.video-detail", {})
+                .get("itemInfo", {})
+                .get("itemStruct", {})
+            )
+            # Fall back to 'stats' when 'statsV2' is omitted (common on photo posts)
+            meta = item_struct.get("statsV2") or item_struct.get("stats")
+            if meta:
+                break
         except Exception:
             continue
+
     if not meta:
-        raise ValueError("TikTok statsV2 JSON block not found on page")
+        raise ValueError(f"TikTok stats JSON block not found on page: {url}")
+
     return {
         "likes": parse_metric_number(meta.get("diggCount", 0)),
         "shares": parse_metric_number(meta.get("shareCount", 0)),
