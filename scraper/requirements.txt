@@ -9,4 +9,4 @@ google-cloud-bigquery==3.24.0
 pyarrow==16.1.0
 db-dtypes==1.2.0
 tenacity==8.3.0
-apify-client
+apify-client==2.0.0
