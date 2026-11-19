@@ -1,23 +1,45 @@
 /**
  * ============================================================================
- * SERVERLESS API GATEWAY: Google Sheets + BigQuery -> GitHub Pages / Sites
+ * SERVERLESS API GATEWAY: Google Sheets + BigQuery + Gemini (100% Free Tier)
  * ============================================================================
  */
 const CONFIG = {
   GCP_PROJECT_ID: 'taurocampaigns',
   BQ_DATASET: 'music_campaigns',
-  USE_BIGQUERY_FOR_FACTS: true // Automatically falls back to Hoja 1 / Streams if false
+  USE_BIGQUERY_FOR_FACTS: true, // Automatically falls back to Hoja 1 / Streams if false
+  GEMINI_MODEL: 'gemini-3.8-flash'
 };
 
 function doGet(e) {
   if (e && e.parameter && e.parameter.api === '1') {
     const email = (e.parameter.email || '').trim().toLowerCase();
     const password = e.parameter.password || '';
+    const action = (e.parameter.action || '').trim().toLowerCase();
+
+    // On-demand Gemini Insights endpoint triggered by the dashboard button:
+    // ?api=1&action=ai_insights&email=...&password=...&artist=...&campaign=...&save=1
+    if (action === 'ai_insights') {
+      const artistFilter = (e.parameter.artist || '').trim();
+      const campaignFilter = (e.parameter.campaign || '').trim();
+      const saveToSheet = e.parameter.save === '1';
+      const aiPayload = generateGeminiInsightsForUser(
+        email,
+        password,
+        artistFilter,
+        campaignFilter,
+        saveToSheet
+      );
+      return ContentService
+        .createTextOutput(JSON.stringify(aiPayload))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     const payload = getDashboardPayload(email, password);
     return ContentService
       .createTextOutput(JSON.stringify(payload))
       .setMimeType(ContentService.MimeType.JSON);
   }
+
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('CampaignPulse | Music Label Intelligence')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -104,7 +126,6 @@ function getDashboardPayload(emailInput, passwordInput) {
   const govRows = getSheetObjects('Governance');
   const insightRows = getSheetObjects('Insights');
 
-  // Validate email + password against Governance sheet
   const authCheck = validateGovernanceUser(govRows, email, password);
   if (!authCheck.authorized) {
     return {
@@ -150,7 +171,6 @@ function getDashboardPayload(emailInput, passwordInput) {
     }
   });
 
-  // Non-admins must have at least one artist assigned to their company
   if (!isAdmin && allowedArtistsSet.size === 0) {
     return {
       authorized: false,
@@ -177,7 +197,6 @@ function getDashboardPayload(emailInput, passwordInput) {
     streams = getFallbackSheetStreams(allowedArtistsLowerSet, isAdmin);
   }
 
-  // If Admin/Tauro, populate allowedArtists automatically from all artists found in the data
   if (isAdmin) {
     rrss.forEach(r => {
       if (r.artist) {
@@ -214,6 +233,330 @@ function getDashboardPayload(emailInput, passwordInput) {
     insights: insights
   };
 }
+
+// ============================================================================
+// ON-DEMAND GEMINI INSIGHTS ENGINE (BigQuery + GSheet Synthesis)
+// ============================================================================
+
+/**
+ * Triggered on demand when the user clicks "Generate Insights with Gemini".
+ */
+function generateGeminiInsightsForUser(email, password, artistFilter, campaignFilter, saveToSheet) {
+  const baseData = getDashboardPayload(email, password);
+  if (!baseData.authorized) {
+    return baseData;
+  }
+
+  const targetArtist = normalizeArtist(artistFilter);
+  const targetCampaign = String(campaignFilter || '').trim();
+
+  const filteredRrss = baseData.rrss.filter(r =>
+    (!targetArtist || targetArtist === 'ALL' || r.artist === targetArtist) &&
+    (!targetCampaign || targetCampaign === 'ALL' || r.campaign === targetCampaign)
+  );
+
+  const filteredStreams = baseData.streams.filter(s =>
+    (!targetArtist || targetArtist === 'ALL' || s.artist === targetArtist) &&
+    (!targetCampaign || targetCampaign === 'ALL' || s.song === targetCampaign)
+  );
+
+  if (!filteredRrss.length && !filteredStreams.length) {
+    return {
+      authorized: true,
+      success: false,
+      message: 'No RRSS or Spotify data found for the selected artist/campaign.'
+    };
+  }
+
+  // Pass governance-filtered GSheet insights into the cohort builder
+  const cohorts = buildCampaignCohortsForAI_(filteredRrss, filteredStreams, baseData.insights || []);
+  const generatedList = [];
+  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  // Process up to 3 cohorts per on-demand click to stay fast and within free-tier RPM limits
+  cohorts.slice(0, 3).forEach(cohort => {
+    const insightText = callGeminiForCampaign_(cohort);
+    const entry = {
+      artist: cohort.artist,
+      campaign: cohort.campaign,
+      created_at: todayStr,
+      insight: insightText
+    };
+    generatedList.push(entry);
+
+    if (saveToSheet) {
+      saveInsightToSheet_(entry.artist, entry.campaign, entry.created_at, entry.insight);
+    }
+  });
+
+  return {
+    authorized: true,
+    success: true,
+    generatedInsights: generatedList
+  };
+}
+
+function buildCampaignCohortsForAI_(rrssRows, streamRows, sheetInsights) {
+  const map = new Map();
+
+  rrssRows.forEach(r => {
+    const artist = r.artist || 'Unknown Artist';
+    const campaign = r.campaign || 'General Campaign';
+    const key = `${artist}|||${campaign}`;
+    if (!map.has(key)) {
+      map.set(key, { artist, campaign, postsByUrl: new Map(), streams: [] });
+    }
+    const cohort = map.get(key);
+    const urlKey = r.url || `${r.platform}-${r.created_at}-${Math.random()}`;
+    const existing = cohort.postsByUrl.get(urlKey);
+
+    if (!existing || (Number(r.views) || 0) >= existing.views) {
+      cohort.postsByUrl.set(urlKey, {
+        platform: r.platform || 'Other',
+        platformRaw: r.platformRaw || r.platform || 'Other',
+        url: r.url || '',
+        views: Number(r.views) || 0,
+        likes: Number(r.likes) || 0,
+        comments: Number(r.comments) || 0,
+        shares: (Number(r.shares) || 0) + (Number(r.bookmarks) || 0) + (Number(r.favorites) || 0),
+        interactions: Number(r.interactions) || 0
+      });
+    }
+  });
+
+  streamRows.forEach(s => {
+    const artist = s.artist || 'Unknown Artist';
+    const campaign = s.song || 'General Track';
+    const key = `${artist}|||${campaign}`;
+    if (!map.has(key)) {
+      map.set(key, { artist, campaign, postsByUrl: new Map(), streams: [] });
+    }
+    map.get(key).streams.push(s);
+  });
+
+  return Array.from(map.values()).map(c => {
+    const sortedPosts = Array.from(c.postsByUrl.values())
+      .sort((a, b) => b.views - a.views);
+
+    const totalViews = sortedPosts.reduce((sum, p) => sum + p.views, 0);
+    const totalInteractions = sortedPosts.reduce((sum, p) => sum + p.interactions, 0);
+    const totalSharesSaves = sortedPosts.reduce((sum, p) => sum + p.shares, 0);
+    const avgER = totalViews > 0 ? ((totalInteractions / totalViews) * 100).toFixed(2) : '0.00';
+    const saveShareRate = totalViews > 0 ? ((totalSharesSaves / totalViews) * 100).toFixed(2) : '0.00';
+
+    // Aggregate BigQuery performance by platform
+    const platMap = new Map();
+    sortedPosts.forEach(p => {
+      const platName = p.platform || 'Other';
+      if (!platMap.has(platName)) {
+        platMap.set(platName, { platform: platName, posts: 0, views: 0, interactions: 0, sharesSaves: 0 });
+      }
+      const agg = platMap.get(platName);
+      agg.posts += 1;
+      agg.views += p.views;
+      agg.interactions += p.interactions;
+      agg.sharesSaves += p.shares;
+    });
+
+    const platformBreakdown = Array.from(platMap.values())
+      .sort((a, b) => b.views - a.views)
+      .map(pl => ({
+        ...pl,
+        viewSharePct: totalViews > 0 ? ((pl.views / totalViews) * 100).toFixed(1) : '0.0',
+        erPct: pl.views > 0 ? ((pl.interactions / pl.views) * 100).toFixed(2) : '0.00',
+        viralityPct: pl.views > 0 ? ((pl.sharesSaves / pl.views) * 100).toFixed(2) : '0.00'
+      }));
+
+    // Streaming summary & growth trajectory
+    const sortedStreams = c.streams.sort((a, b) => a.date.localeCompare(b.date));
+    const firstStream = sortedStreams.length ? sortedStreams[0] : null;
+    const latestStream = sortedStreams.length ? sortedStreams[sortedStreams.length - 1] : null;
+    const peakDaily = sortedStreams.reduce((max, s) => Math.max(max, Number(s.streams) || 0), 0);
+    const dailyGrowthPct = (firstStream && latestStream && sortedStreams.length > 1 && firstStream.streams > 0)
+      ? (((latestStream.streams - firstStream.streams) / firstStream.streams) * 100).toFixed(1)
+      : null;
+
+    // Match Google Sheet Insights (current campaign + artist historical campaigns)
+    const artistLower = c.artist.toLowerCase();
+    const campaignLower = c.campaign.toLowerCase();
+    const artistSheetInsights = (sheetInsights || [])
+      .filter(i => i.artist && i.artist.toLowerCase() === artistLower && i.insight)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+
+    const currentCampaignInsights = artistSheetInsights
+      .filter(i => i.campaign && i.campaign.toLowerCase() === campaignLower)
+      .slice(0, 5);
+
+    const pastArtistInsights = artistSheetInsights
+      .filter(i => !i.campaign || i.campaign.toLowerCase() !== campaignLower)
+      .slice(0, 4);
+
+    return {
+      artist: c.artist,
+      campaign: c.campaign,
+      totalUniquePosts: sortedPosts.length,
+      totalViews,
+      totalInteractions,
+      totalSharesSaves,
+      avgER,
+      saveShareRate,
+      platformBreakdown,
+      topPosts: sortedPosts.slice(0, 6),
+      streamSummary: latestStream
+        ? {
+            firstDate: firstStream.date,
+            latestDate: latestStream.date,
+            latestDailyStreams: latestStream.streams,
+            accumulatedStreams: latestStream.accumulated_streams,
+            peakDailyStreams: peakDaily,
+            dailyGrowthPct: dailyGrowthPct
+          }
+        : null,
+      currentCampaignInsights,
+      pastArtistInsights
+    };
+  });
+}
+
+/**
+ * Calls Gemini API using BigQuery metrics + Google Sheet historical insights + URL Context.
+ */
+function callGeminiForCampaign_(cohort) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY in Apps Script Project Settings -> Script Properties.');
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent`;
+
+  const platformBlock = cohort.platformBreakdown.length
+    ? cohort.platformBreakdown.map(pl =>
+        `- ${pl.platform}: ${pl.posts} post(s) | ${pl.views.toLocaleString()} views (${pl.viewSharePct}% share) | ER: ${pl.erPct}% | Save/Share Rate: ${pl.viralityPct}%`
+      ).join('\n')
+    : 'No platform breakdown available.';
+
+  const topUrlsBlock = cohort.topPosts.length
+    ? cohort.topPosts.map((p, i) => {
+        const er = p.views > 0 ? ((p.interactions / p.views) * 100).toFixed(2) + '%' : '0%';
+        return `${i + 1}. [${p.platformRaw}] ${p.url || '(no URL)'} — Views: ${p.views.toLocaleString()}, Likes: ${p.likes.toLocaleString()}, Comments: ${p.comments.toLocaleString()}, Shares/Saves: ${p.shares.toLocaleString()}, ER: ${er}`;
+      }).join('\n')
+    : 'No social post URLs logged yet.';
+
+  const streamBlock = cohort.streamSummary
+    ? `Window: ${cohort.streamSummary.firstDate} to ${cohort.streamSummary.latestDate} | Latest Daily Streams: ${cohort.streamSummary.latestDailyStreams.toLocaleString()} | Peak Daily Streams: ${cohort.streamSummary.peakDailyStreams.toLocaleString()} | Accumulated Streams: ${cohort.streamSummary.accumulatedStreams.toLocaleString()}${cohort.streamSummary.dailyGrowthPct !== null ? ` | Daily Velocity Change: ${Number(cohort.streamSummary.dailyGrowthPct) >= 0 ? '+' : ''}${cohort.streamSummary.dailyGrowthPct}%` : ''}`
+    : 'No Spotify streaming rows logged yet.';
+
+  const currentSheetBlock = cohort.currentCampaignInsights.length
+    ? cohort.currentCampaignInsights.map(i => `[${i.created_at || 'No Date'}] ${i.insight}`).join('\n')
+    : 'None logged yet for this specific campaign.';
+
+  const pastSheetBlock = cohort.pastArtistInsights.length
+    ? cohort.pastArtistInsights.map(i => `[${i.campaign || 'Past Campaign'} — ${i.created_at || 'No Date'}] ${i.insight}`).join('\n')
+    : 'None logged yet for other campaigns by this artist.';
+
+  const prompt = `
+You are a Senior Music Marketing, Audience Strategy & Streaming Intelligence Director advising a record label.
+
+ARTIST: ${cohort.artist}
+CAMPAIGN / SONG: ${cohort.campaign}
+
+=== 1. BIGQUERY RRSS PERFORMANCE ===
+- Unique Tracked Posts: ${cohort.totalUniquePosts}
+- Total Views: ${cohort.totalViews.toLocaleString()}
+- Total Interactions: ${cohort.totalInteractions.toLocaleString()}
+- Overall Engagement Rate: ${cohort.avgER}%
+- Overall Save/Share Virality Rate: ${cohort.saveShareRate}%
+
+PLATFORM BREAKDOWN (BIGQUERY):
+${platformBlock}
+
+TOP PERFORMING POST URLS:
+${topUrlsBlock}
+
+=== 2. BIGQUERY SPOTIFY STREAMING PERFORMANCE ===
+${streamBlock}
+
+=== 3. GOOGLE SHEET HISTORICAL & MANUAL INSIGHTS ===
+Current Campaign Notes:
+${currentSheetBlock}
+
+Artist's Prior Campaigns Learnings:
+${pastSheetBlock}
+
+INSTRUCTIONS:
+1. Synthesize BOTH the quantitative performance data (RRSS platforms, virality rates, URLs, Spotify streams) AND the qualitative historical insights above. Do NOT repeat or copy-paste prior notes verbatim—use them as baseline context to validate trends, spot shifts, and generate NEW net-incremental insights. Do not mention internal data tools like "BigQuery" or "Google Sheets" in your response; refer naturally to RRSS performance, streaming data, and prior campaign learnings.
+2. Use URL Context to inspect any publicly accessible content from the URLs above (e.g., YouTube videos/Shorts). If a social platform blocks direct URL fetching, rely strictly on the metrics and historical context provided.
+3. Deliver a sharp, executive strategic playbook formatted strictly as 5 bullet points using "• **Title:**" syntax (no markdown "#" headings, no intro/outro text):
+   • **Insights:** Net-new findings from analyzing the RRSS and streams performance alongside prior campaign learnings (what is accelerating, plateauing, or diverging from past benchmarks).
+   • **Recommended Post Types & Creative Angles:** Specific content formats, hook structures, video lengths, and UGC vs. official asset mixes to prioritize based on platform ER and save/share signals.
+   • **Future Campaign Strategy & Rollout:** Tactical multi-phase campaign structure (pre-save/tease, creator seeding waves, cross-channel funnel from short-form video to Spotify conversion).
+   • **Audience Segmentation & Targeting:** High-intent audience personas, behavioral retargeting pools (e.g., high-save vs. passive-view cohorts), and platform-specific demographic/interest segments for future campaigns.
+   • **Additional Strategic Levers (KPIs & Testing):** Concrete A/B tests, release cadence adjustments, and target KPI benchmarks for the next campaign cycle.
+`.trim();
+
+  const payload = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }]
+      }
+    ],
+    tools: [
+      { url_context: {} }
+    ],
+    generationConfig: {
+      temperature: 0.45,
+      maxOutputTokens: 1600
+    }
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'x-goog-api-key': apiKey
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(endpoint, options);
+  const statusCode = response.getResponseCode();
+  const body = JSON.parse(response.getContentText());
+
+  if (statusCode !== 200) {
+    const errMsg = (body.error && body.error.message) ? body.error.message : response.getContentText();
+    throw new Error(`Gemini API Error (${statusCode}): ${errMsg}`);
+  }
+
+  const candidate = body.candidates && body.candidates[0];
+  const parts = candidate && candidate.content && candidate.content.parts ? candidate.content.parts : [];
+  const textOutput = parts.map(p => p.text || '').join('').trim();
+
+  return textOutput || 'No insight generated.';
+}
+
+function saveInsightToSheet_(artist, campaign, createdAt, insightText) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheets().find(s => s.getName().trim().toLowerCase() === 'insights');
+  if (!sheet) return;
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const newRow = headers.map(h => {
+    const key = String(h).trim().toLowerCase();
+    if (key === 'artist' || key === 'artista') return artist;
+    if (key === 'campaign' || key === 'campaña' || key === 'song') return campaign;
+    if (key === 'created_at' || key === 'date' || key === 'fecha') return createdAt;
+    if (key === 'insight' || key === 'insights') return insightText;
+    return '';
+  });
+
+  sheet.appendRow(newRow);
+}
+
+// ============================================================================
+// BIGQUERY & GOOGLE SHEETS DATA LAYER
+// ============================================================================
 
 function queryBigQueryRRSS(allowedArtistsLower, isAdmin) {
   const whereClause = isAdmin ? '' : 'WHERE LOWER(TRIM(artist)) IN UNNEST(@artists)';
@@ -389,17 +732,17 @@ function getFallbackSheetStreams(allowedArtistsLowerSet, isAdmin) {
     const streams = Number(r['Streams']) || 0;
     const accumulated_streams = Number(r['Accumulated Streams']) || 0;
     const key = artist + '||' + song + '||' + date;
-    
+
     if (!map.has(key) || accumulated_streams > map.get(key).accumulated_streams) {
-      map.set(key, { 
-        date: date, 
-        artist: artist, 
-        song: song, 
-        streams: streams, 
-        accumulated_streams: accumulated_streams 
+      map.set(key, {
+        date: date,
+        artist: artist,
+        song: song,
+        streams: streams,
+        accumulated_streams: accumulated_streams
       });
     }
   });
-  
+
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
