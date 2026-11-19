@@ -35,7 +35,7 @@ jobs:
             --region us-central1 \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --service-account campaign-pipeline-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
-            --set-env-vars="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},SHEET_ID=${{ secrets.SHEET_ID }}" \
+            --set-env-vars="GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }},SHEET_ID=${{ secrets.SHEET_ID }},SMTP_USER=${{ secrets.SMTP_USER }},SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }},APIFY_SECRET=${{ secrets.APIFY_SECRET }}" \
             --max-retries 2 \
             --task-timeout 30m \
             --memory 2Gi \
