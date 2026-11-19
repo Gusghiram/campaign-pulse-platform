@@ -27,7 +27,7 @@ from selenium.webdriver.chrome.service import Service
 # =====================================================================
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-gcp-project-id")
 BQ_DATASET = os.getenv("BQ_DATASET", "music_campaigns")
-APIFY_SECRET = os.getenv("APIFY_SECRET", "my-apify-secret")
+APIFY_SECRET = os.getenv("APIFY_SECRET", "my-apify-secret").strip()
 SHEET_ID = os.getenv("SHEET_ID", "1yyri3E5ex6pk414kkal0yH--FqJSeQ8rQPynVOJYP8k")
 CAMPAIGN_CONFIG_TAB = os.getenv("CAMPAIGN_CONFIG_TAB", "Campaign_Schedule")
 CAMPAIGN_LINKS_TAB = os.getenv("CAMPAIGN_LINKS_TAB", "campaign_file")
@@ -302,15 +302,29 @@ def scrape_tiktok_batch_apify(urls: list[str]) -> dict[str, dict]:
     }
 
     run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
+    if not run:
+        raise RuntimeError("Apify actor call returned None")
 
-    # Normalize URLs for matching (handles trailing slashes & short-link redirects)
+    # apify-client v2+ returns a Run object (run.default_dataset_id); v1 returned a dict
+    dataset_id = (
+        run["defaultDatasetId"]
+        if isinstance(run, dict)
+        else getattr(run, "default_dataset_id", None) or getattr(run, "defaultDatasetId", None)
+    )
+    if not dataset_id:
+        raise RuntimeError(f"Could not retrieve default_dataset_id from Apify run: {run}")
+
+    # Normalize URLs for matching (handles trailing slashes, query params & short-link redirects)
+    def normalize_url(u: str) -> str:
+        return u.strip().split("?")[0].rstrip("/")
+
     norm_to_originals: dict[str, list[str]] = {}
     for orig in unique_urls:
-        norm = orig.rstrip("/")
-        norm_to_originals.setdefault(norm, []).append(orig)
+        norm_to_originals.setdefault(orig.rstrip("/"), []).append(orig)
+        norm_to_originals.setdefault(normalize_url(orig), []).append(orig)
 
     results_by_url: dict[str, dict] = {}
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+    for item in client.dataset(dataset_id).iterate_items():
         # Skip error items returned by Apify for private/deleted videos
         if item.get("error") or (item.get("playCount") is None and item.get("diggCount") is None):
             continue
@@ -328,17 +342,24 @@ def scrape_tiktok_batch_apify(urls: list[str]) -> dict[str, dict]:
         }
 
         # Match back to the submitted URL (critical for vm.tiktok.com short links)
-        candidates = [
-            str(item.get("submittedVideoUrl") or "").strip().rstrip("/"),
-            str(item.get("input") or "").strip().rstrip("/"),
-            str(item.get("webVideoUrl") or "").strip().rstrip("/"),
+        raw_candidates = [
+            str(item.get("submittedVideoUrl") or ""),
+            str(item.get("input") or ""),
+            str(item.get("webVideoUrl") or ""),
+            str(item.get("url") or ""),
         ]
-        for cand in candidates:
-            if cand and cand in norm_to_originals:
-                for orig_url in norm_to_originals[cand]:
-                    results_by_url[orig_url] = metrics
+        matched = False
+        for raw_cand in raw_candidates:
+            for cand in (raw_cand.strip().rstrip("/"), normalize_url(raw_cand)):
+                if cand and cand in norm_to_originals:
+                    for orig_url in norm_to_originals[cand]:
+                        results_by_url[orig_url] = metrics
+                    matched = True
+                    break
+            if matched:
                 break
 
+    print(f"✅ Apify matched {len(results_by_url)}/{len(unique_urls)} TikTok URLs.")
     return results_by_url
 
 
