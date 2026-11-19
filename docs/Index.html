@@ -24,6 +24,21 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+.gemini-btn {
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 55%, #DB2777 100%);
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.35);
+}
+.gemini-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.5);
+}
+@keyframes geminiPulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.18) rotate(15deg); opacity: 0.8; }
+}
+.gemini-spin {
+  animation: geminiPulse 1.2s ease-in-out infinite;
+}
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #090A0F; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -169,7 +184,6 @@ body {
   <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
     <!-- TAB 1: RRSS PERFORMANCE -->
     <section id="tab-rrss" class="space-y-6">
-      <!-- KPI CARDS -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div class="glass-card p-4 rounded-xl">
           <span class="text-xs text-slate-400">Active Posts (Unique)</span>
@@ -203,7 +217,7 @@ body {
         </div>
       </div>
 
-      <!-- ROW 1: VIEWS TILE (DONUT ON LEFT + TWO STACKED LINE CHARTS ON RIGHT) -->
+      <!-- ROW 1: VIEWS TILE -->
       <div class="glass-card p-5 rounded-xl">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           <div class="flex flex-col lg:border-r lg:border-slate-800/80 lg:pr-6">
@@ -232,7 +246,7 @@ body {
         </div>
       </div>
 
-      <!-- ROW 2: INTERACTIONS TILE (DONUT ON LEFT + TWO STACKED LINE CHARTS ON RIGHT) -->
+      <!-- ROW 2: INTERACTIONS TILE -->
       <div class="glass-card p-5 rounded-xl">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           <div class="flex flex-col lg:border-r lg:border-slate-800/80 lg:pr-6">
@@ -261,7 +275,7 @@ body {
         </div>
       </div>
 
-      <!-- ROW 3: ENGAGEMENT RATE BY PLATFORM (LINE) + ENGAGEMENT METRIC SHARE (HORIZONTAL BAR) -->
+      <!-- ROW 3: ENGAGEMENT RATE BY PLATFORM + ENGAGEMENT BREAKDOWN -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="glass-card p-5 rounded-xl">
           <h3 class="text-sm font-bold text-white mb-1">Engagement Rate by Platform Over Time</h3>
@@ -446,21 +460,52 @@ body {
       </div>
     </section>
 
-    <!-- TAB 4: QUALITATIVE INSIGHTS -->
+    <!-- TAB 4: CAMPAIGN INSIGHTS (MANUAL + ON-DEMAND GEMINI AI) -->
     <section id="tab-insights" class="hidden space-y-6">
-      <div class="glass-card p-5 rounded-xl">
-        <h3 class="text-sm font-bold text-white mb-1">Executive Campaign Insights</h3>
-        <p class="text-xs text-slate-400">Manual creative &amp; audience takeaways synced directly from the Insights tab</p>
+      <div class="glass-card p-5 rounded-xl flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-bold text-white mb-1">Executive Campaign Insights</h3>
+          <p class="text-xs text-slate-400">
+            Generate instant AI takeaways from your active artist/campaign metrics and platform URLs using Gemini.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          id="btn-generate-gemini"
+          onclick="triggerGeminiInsights()"
+          class="gemini-btn px-4 py-2.5 rounded-xl text-xs font-semibold text-white flex items-center gap-2.5 transition disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <!-- Gemini 4-Point Sparkle SVG Icon -->
+          <svg id="gemini-btn-icon" class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="geminiSparkleGrad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#BAE6FD"/>
+                <stop offset="50%" stop-color="#FFFFFF"/>
+                <stop offset="100%" stop-color="#FBCFE8"/>
+              </linearGradient>
+            </defs>
+            <path
+              d="M12 2C12.35 7.45 16.55 11.65 22 12C16.55 12.35 12.35 16.55 12 22C11.65 16.55 7.45 12.35 2 12C7.45 11.65 11.65 7.45 12 2Z"
+              fill="url(#geminiSparkleGrad)"
+            />
+          </svg>
+          <span id="gemini-btn-label">Generate Insights with Gemini</span>
+        </button>
       </div>
+
+      <div id="gemini-status-banner" class="hidden text-xs p-3.5 rounded-xl border"></div>
+
       <div id="insights-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
   </main>
 </div>
 
 <script>
-const APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbwXWgyYZWtOEBMLyO9hBtPl2hlHerC3876LwVmZ8IKS6sFbbHz5mwgZfLiMDFud235B/exec';
+const APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbw8VxsYxCIXZ8TVk4DOYsyme6cC2rrBMW8PJxjhHwM5SxD2GWADjMuWBGzYycc7Erpp/exec';
 let APP_DATA = null;
 let CUMULATIVE_POSTS = [];
+let AUTH_SESSION = { email: '', password: '', isDemo: false };
 
 let chartPlatform = null;
 let chartTimeline = null;
@@ -514,6 +559,19 @@ function formatNum(num) {
   return Number(num || 0).toLocaleString('en-US');
 }
 
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatInsightMarkdown(text) {
+  const safe = escapeHtml(text);
+  return safe.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+}
+
 function getRowInteractions(r) {
   const sumParts =
     (Number(r.likes) || 0) +
@@ -539,7 +597,7 @@ function getDummyDemoPayload() {
       allowedArtists: ['Nora Vela', 'Kairo & The Echoes', 'Mateo Solís']
     },
     rrss: [
-      // --- Nora Vela: Fuego Lento (Day 1 = 2026-10-01) ---
+      // --- Nora Vela: Fuego Lento ---
       { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-01', url: 'https://www.tiktok.com/@noravela/video/7401001', views: 145000, likes: 18200, comments: 640, shares: 2150, bookmarks: 1420, favorites: 0, repost: 310, reply: 0, all_reactions: 0, interactions: 22720 },
       { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-01', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 88000, likes: 11400, comments: 410, shares: 980, bookmarks: 760, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 13550 },
       { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-01', url: 'https://youtube.com/shorts/nv_fl_01', views: 52000, likes: 4300, comments: 190, shares: 310, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 4800 },
@@ -556,7 +614,7 @@ function getDummyDemoPayload() {
       { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-14', url: 'https://www.instagram.com/reel/NV_FL_01/', views: 540000, likes: 61500, comments: 2140, shares: 6180, bookmarks: 4890, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 74710 },
       { artist: 'Nora Vela', campaign: 'Fuego Lento', platform: 'YouTube', platformRaw: 'YouTube Shorts', created_at: '2026-10-14', url: 'https://youtube.com/shorts/nv_fl_01', views: 365000, likes: 25400, comments: 1120, shares: 2190, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 28710 },
 
-      // --- Kairo & The Echoes: Midnight Neon (Day 1 = 2026-10-10) ---
+      // --- Kairo & The Echoes: Midnight Neon ---
       { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-10', url: 'https://www.tiktok.com/@kairoechoes/video/8802001', views: 190000, likes: 21400, comments: 810, shares: 3100, bookmarks: 1950, favorites: 0, repost: 420, reply: 0, all_reactions: 0, interactions: 27680 },
       { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-10', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 112000, likes: 13900, comments: 530, shares: 1420, bookmarks: 1110, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 16960 },
       { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-10', url: 'https://youtube.com/watch?v=ke_mn_01', views: 95000, likes: 8900, comments: 620, shares: 910, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 10430 },
@@ -573,7 +631,7 @@ function getDummyDemoPayload() {
       { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-23', url: 'https://www.instagram.com/reel/KE_MN_01/', views: 740000, likes: 82100, comments: 2890, shares: 8640, bookmarks: 6710, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 100340 },
       { artist: 'Kairo & The Echoes', campaign: 'Midnight Neon', platform: 'YouTube', platformRaw: 'YouTube Video', created_at: '2026-10-23', url: 'https://youtube.com/watch?v=ke_mn_01', views: 625000, likes: 51200, comments: 3410, shares: 5890, bookmarks: 0, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 60500 },
 
-      // --- Mateo Solís: Distancia Cero (Day 1 = 2026-10-15) ---
+      // --- Mateo Solís: Distancia Cero ---
       { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'TikTok', platformRaw: 'TikTok', created_at: '2026-10-15', url: 'https://www.tiktok.com/@mateosolis/video/9903001', views: 96000, likes: 12800, comments: 490, shares: 1620, bookmarks: 1120, favorites: 0, repost: 240, reply: 0, all_reactions: 0, interactions: 16270 },
       { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-15', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 64000, likes: 8900, comments: 340, shares: 810, bookmarks: 640, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 10690 },
 
@@ -587,19 +645,16 @@ function getDummyDemoPayload() {
       { artist: 'Mateo Solís', campaign: 'Distancia Cero', platform: 'Instagram', platformRaw: 'Instagram Reels', created_at: '2026-10-28', url: 'https://www.instagram.com/reel/MS_DC_01/', views: 510000, likes: 62400, comments: 2210, shares: 5980, bookmarks: 4710, favorites: 0, repost: 0, reply: 0, all_reactions: 0, interactions: 75300 }
     ],
     streams: [
-      // Nora Vela - Fuego Lento
       { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-01', streams: 42500, accumulated_streams: 42500 },
       { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-04', streams: 68200, accumulated_streams: 214000 },
       { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-08', streams: 94100, accumulated_streams: 548000 },
       { artist: 'Nora Vela', song: 'Fuego Lento', date: '2026-10-14', streams: 118400, accumulated_streams: 1192000 },
 
-      // Kairo & The Echoes - Midnight Neon
       { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-10', streams: 58900, accumulated_streams: 58900 },
       { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-13', streams: 89400, accumulated_streams: 286000 },
       { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-17', streams: 132000, accumulated_streams: 745000 },
       { artist: 'Kairo & The Echoes', song: 'Midnight Neon', date: '2026-10-23', streams: 164500, accumulated_streams: 1680000 },
 
-      // Mateo Solís - Distancia Cero
       { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-15', streams: 31200, accumulated_streams: 31200 },
       { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-18', streams: 54800, accumulated_streams: 162000 },
       { artist: 'Mateo Solís', song: 'Distancia Cero', date: '2026-10-22', streams: 79600, accumulated_streams: 438000 },
@@ -610,19 +665,7 @@ function getDummyDemoPayload() {
         artist: 'Nora Vela',
         campaign: 'Fuego Lento',
         created_at: '2026-10-14',
-        insight: '• Acoustic chorus snippet on TikTok drove a 15.1% engagement rate, outperforming official visualizer clips by 2.3x.\n• High bookmark-to-like ratio (8.9%) indicates strong save intent for user-generated transitions.\n• Spotify daily streams accelerated +38% following the Day-8 creator seeding wave.'
-      },
-      {
-        artist: 'Kairo & The Echoes',
-        campaign: 'Midnight Neon',
-        created_at: '2026-10-23',
-        insight: '• Strongest Day-14 cumulative velocity across the roster (2.94M total social views and 1.68M Spotify streams).\n• YouTube full music video maintained a 9.6% interaction rate with high repeat comment threads.\n• Recommend shifting 20% of paid boost budget toward Instagram Reels retargeting for Mexico & Colombia.'
-      },
-      {
-        artist: 'Mateo Solís',
-        campaign: 'Distancia Cero',
-        created_at: '2026-10-28',
-        insight: '• Lyrics-overlay Reels generated highest share velocity on Instagram (1.17% share-to-view rate).\n• Steady week-over-week growth curve with zero post-launch decay between Day 7 and Day 14.'
+        insight: '• **TikTok Acoustic Hook:** Chorus snippet drove a 15.1% engagement rate, outperforming official visualizer clips by 2.3x.\n• **Save Intent:** High bookmark-to-like ratio (8.9%) indicates strong user-generated transition potential.\n• **Spotify Lift:** Daily streams accelerated +38% following the Day-8 creator seeding wave.'
       }
     ]
   };
@@ -645,15 +688,16 @@ async function handleLogin(e) {
   btn.disabled = true;
   btn.innerHTML = '<span>Verifying Governance Access...</span>';
 
-  // Demo account with dummy data for immediate testing
   if (email === 'test@tauromkt.com') {
     setTimeout(() => {
+      AUTH_SESSION = { email, password, isDemo: true };
       processAuthResponse(getDummyDemoPayload(), btn, errBox);
     }, 250);
     return;
   }
 
   try {
+    AUTH_SESSION = { email, password, isDemo: false };
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(res => processAuthResponse(res, btn, errBox))
@@ -713,6 +757,108 @@ function initDashboard(data) {
   lucide.createIcons();
 }
 
+// ============================================================================
+// ON-DEMAND GEMINI INSIGHTS TRIGGER
+// ============================================================================
+async function triggerGeminiInsights() {
+  const btn = document.getElementById('btn-generate-gemini');
+  const icon = document.getElementById('gemini-btn-icon');
+  const label = document.getElementById('gemini-btn-label');
+  const banner = document.getElementById('gemini-status-banner');
+
+  const artist = document.getElementById('filter-artist').value;
+  const campaign = document.getElementById('filter-campaign').value;
+
+  banner.classList.add('hidden');
+  btn.disabled = true;
+  icon.classList.add('gemini-spin');
+  label.textContent = 'Analyzing with Gemini...';
+
+  const resetBtn = () => {
+    btn.disabled = false;
+    icon.classList.remove('gemini-spin');
+    label.textContent = 'Generate Insights with Gemini';
+  };
+
+  const showBanner = (msg, isError) => {
+    banner.textContent = msg;
+    banner.className = isError
+      ? 'text-xs p-3.5 rounded-xl border text-rose-300 bg-rose-500/10 border-rose-500/30'
+      : 'text-xs p-3.5 rounded-xl border text-emerald-300 bg-emerald-500/10 border-emerald-500/30';
+    banner.classList.remove('hidden');
+  };
+
+  if (AUTH_SESSION.isDemo) {
+    setTimeout(() => {
+      const targetArtist = artist === 'ALL' ? 'Kairo & The Echoes' : artist;
+      const targetCamp = campaign === 'ALL'
+        ? (targetArtist === 'Nora Vela' ? 'Fuego Lento' : targetArtist === 'Mateo Solís' ? 'Distancia Cero' : 'Midnight Neon')
+        : campaign;
+      const today = new Date().toISOString().slice(0, 10);
+
+      const demoAiInsight = {
+        artist: targetArtist,
+        campaign: targetCamp,
+        created_at: today,
+        isAiGenerated: true,
+        insight:
+          `• **Platform & URL Winners:** TikTok leads total reach with 54% of cross-channel views and a 14.6% engagement rate, driven by high share/bookmark velocity on the primary hook URL.\n` +
+          `• **Streaming Conversion:** Spotify accumulated streams grew +125% in the second week, confirming strong short-form video discovery spillover.\n` +
+          `• **Recommended Next Moves:** 1) Pin the top-performing TikTok post and launch a 5-creator duet wave using the bridge audio. 2) Retarget Instagram Reels viewers with a Spotify Canvas teaser.`
+      };
+
+      APP_DATA.insights.unshift(demoAiInsight);
+      applyFilters();
+      resetBtn();
+      showBanner(`Gemini generated fresh insights for ${targetArtist} — ${targetCamp} (Demo Mode).`, false);
+    }, 850);
+    return;
+  }
+
+  try {
+    const handleAiResponse = (res) => {
+      resetBtn();
+      if (!res || !res.authorized || !res.success) {
+        showBanner((res && res.message) ? res.message : 'Unable to generate Gemini insights.', true);
+        return;
+      }
+      const items = (res.generatedInsights || []).map(item => ({
+        ...item,
+        isAiGenerated: true
+      }));
+      APP_DATA.insights = [...items, ...APP_DATA.insights];
+      applyFilters();
+      showBanner(`Generated ${items.length} campaign insight(s) with Gemini.`, false);
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(handleAiResponse)
+        .withFailureHandler(err => {
+          resetBtn();
+          showBanner('Gemini error: ' + err.message, true);
+        })
+        .generateGeminiInsightsForUser(AUTH_SESSION.email, AUTH_SESSION.password, artist, campaign, false);
+      return;
+    }
+
+    const url =
+      `${APPS_SCRIPT_API_URL}?api=1&action=ai_insights` +
+      `&email=${encodeURIComponent(AUTH_SESSION.email)}` +
+      `&password=${encodeURIComponent(AUTH_SESSION.password)}` +
+      `&artist=${encodeURIComponent(artist)}` +
+      `&campaign=${encodeURIComponent(campaign)}` +
+      `&save=0`;
+
+    const response = await fetch(url, { method: 'GET', redirect: 'follow' });
+    const data = await response.json();
+    handleAiResponse(data);
+  } catch (err) {
+    resetBtn();
+    showBanner('Request failed: ' + err.message, true);
+  }
+}
+
 function onArtistChange() {
   const selectedArtist = document.getElementById('filter-artist').value;
   const rrss = APP_DATA.rrss.filter(r => selectedArtist === 'ALL' || r.artist === selectedArtist);
@@ -766,7 +912,6 @@ function applyFilters() {
     (platform === 'ALL' || r.platform === platform)
   );
 
-  // Deduplicated posts for KPIs & Donut Charts (respecting Snapshot Date selector)
   const snapshotMap = new Map();
   rrssAllDates.forEach(r => {
     if (dateMode !== 'LATEST' && r.created_at !== dateMode) return;
@@ -777,7 +922,6 @@ function applyFilters() {
   });
   const activeDedupPosts = Array.from(snapshotMap.values());
 
-  // All-time cumulative aggregation per post URL across ALL cut dates (for Post Explorer Table)
   const cumulativeMap = new Map();
   rrssAllDates.forEach(r => {
     const key = r.url || `${r.artist}-${r.campaign}-${Math.random()}`;
@@ -864,7 +1008,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
   const sortedDates = Object.keys(dateGroups).sort();
   const sortedPlats = Array.from(allPlatformsSet).sort();
 
-  // --- 1A. VIEWS BY PLATFORM DONUT ---
+  // 1A. VIEWS BY PLATFORM DONUT
   const platViewTotals = {};
   dedupPosts.forEach(r => {
     platViewTotals[r.platform] = (platViewTotals[r.platform] || 0) + (Number(r.views) || 0);
@@ -890,7 +1034,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 1B. VIEWS SNAPSHOT EVOLUTION (TOTAL CUMULATIVE) ---
+  // 1B. VIEWS SNAPSHOT EVOLUTION (TOTAL)
   if (chartTimeline) chartTimeline.destroy();
   chartTimeline = new Chart(document.getElementById('chart-rrss-timeline'), {
     type: 'line',
@@ -920,7 +1064,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 1C. VIEWS SNAPSHOT EVOLUTION BY PLATFORM ---
+  // 1C. VIEWS SNAPSHOT EVOLUTION BY PLATFORM
   const viewsPlatformDatasets = sortedPlats.map((plat, idx) => {
     const color = getPlatformColor(plat, idx);
     return {
@@ -955,7 +1099,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 2A. INTERACTIONS BY PLATFORM DONUT ---
+  // 2A. INTERACTIONS BY PLATFORM DONUT
   const platInteractionTotals = {};
   dedupPosts.forEach(r => {
     platInteractionTotals[r.platform] = (platInteractionTotals[r.platform] || 0) + getRowInteractions(r);
@@ -981,7 +1125,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 2B. INTERACTIONS SNAPSHOT EVOLUTION (TOTAL CUMULATIVE) ---
+  // 2B. INTERACTIONS SNAPSHOT EVOLUTION (TOTAL)
   if (chartInteractionsTimeline) chartInteractionsTimeline.destroy();
   chartInteractionsTimeline = new Chart(document.getElementById('chart-interactions-timeline'), {
     type: 'line',
@@ -1011,7 +1155,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 2C. INTERACTIONS SNAPSHOT EVOLUTION BY PLATFORM ---
+  // 2C. INTERACTIONS SNAPSHOT EVOLUTION BY PLATFORM
   const interactionsPlatformDatasets = sortedPlats.map((plat, idx) => {
     const color = getPlatformColor(plat, idx);
     return {
@@ -1046,7 +1190,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 3. ENGAGEMENT RATE BY PLATFORM OVER TIME ---
+  // 3. ENGAGEMENT RATE BY PLATFORM OVER TIME
   const erDatasets = sortedPlats.map((plat, idx) => {
     const color = getPlatformColor(plat, idx);
     return {
@@ -1095,7 +1239,7 @@ function updateRRSSView(dedupPosts, allDateRows) {
     }
   });
 
-  // --- 4. ENGAGEMENT METRICS BREAKDOWN (HORIZONTAL BAR WITH % + COUNT TOOLTIP) ---
+  // 4. ENGAGEMENT METRICS BREAKDOWN
   const metricTotals = [
     { label: 'Likes', value: dedupPosts.reduce((s, r) => s + (Number(r.likes) || 0), 0), color: '#F472B6' },
     { label: 'Shares', value: dedupPosts.reduce((s, r) => s + (Number(r.shares) || 0), 0), color: '#34D399' },
@@ -1162,12 +1306,12 @@ function renderPostsTable() {
     return `
       <tr class="hover:bg-slate-800/40 transition">
         <td class="p-3">
-          <div class="font-semibold text-white">${r.artist}</div>
-          <div class="text-slate-400 text-[11px]">${r.campaign}</div>
+          <div class="font-semibold text-white">${escapeHtml(r.artist)}</div>
+          <div class="text-slate-400 text-[11px]">${escapeHtml(r.campaign)}</div>
         </td>
         <td class="p-3">
           <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/10 text-indigo-300">
-            ${r.platformRaw || r.platform}
+            ${escapeHtml(r.platformRaw || r.platform)}
           </span>
         </td>
         <td class="p-3 text-right font-semibold text-sky-400">${formatNum(r.views)}</td>
@@ -1176,7 +1320,7 @@ function renderPostsTable() {
         <td class="p-3 text-right text-emerald-400">${formatNum(r.shares + r.bookmarks + r.favorites)}</td>
         <td class="p-3 text-right font-semibold text-purple-300">${er}</td>
         <td class="p-3 text-center">
-          <a href="${r.url}" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Open ↗</a>
+          <a href="${escapeHtml(r.url)}" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Open ↗</a>
         </td>
       </tr>
     `;
@@ -1234,7 +1378,7 @@ function updateStreamsView(streams) {
 }
 
 // ============================================================================
-// CAMPAIGN COMPARISON TAB LOGIC (MULTI-DAY WINDOW)
+// CAMPAIGN COMPARISON TAB LOGIC
 // ============================================================================
 function parseIsoDateUTC(dateStr) {
   const parts = String(dateStr || '').slice(0, 10).split('-');
@@ -1327,7 +1471,7 @@ function renderCompareSelectorPills() {
         }"
       >
         <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${active ? color : '#475569'}"></span>
-        <span><strong class="text-slate-200">${c.artist}</strong> — ${c.campaign}</span>
+        <span><strong class="text-slate-200">${escapeHtml(c.artist)}</strong> — ${escapeHtml(c.campaign)}</span>
       </button>
     `;
   }).join('');
@@ -1532,8 +1676,8 @@ function renderComparisonView() {
 
     return `
       <tr class="hover:bg-slate-800/40 transition">
-        <td class="p-3 font-semibold text-white">${row.label}</td>
-        <td class="p-3 text-slate-400">${row.day1Date}</td>
+        <td class="p-3 font-semibold text-white">${escapeHtml(row.label)}</td>
+        <td class="p-3 text-slate-400">${escapeHtml(row.day1Date)}</td>
         <td class="p-3 text-right font-semibold text-sky-400">${formatMetricVal(row.day1Val)}</td>
         <td class="p-3 text-right font-semibold text-indigo-300">${endCol}</td>
         <td class="p-3 text-right font-semibold">${growthHtml}</td>
@@ -1546,20 +1690,23 @@ function renderComparisonView() {
 function updateInsightsView(insights) {
   const container = document.getElementById('insights-container');
   if (!insights.length) {
-    container.innerHTML = `<div class="glass-card p-6 rounded-xl text-xs text-slate-400">No manual insights found.</div>`;
+    container.innerHTML = `<div class="glass-card p-6 rounded-xl text-xs text-slate-400 md:col-span-2">No insights found for this selection. Click <strong>Generate Insights with Gemini</strong> above to analyze this artist and campaign automatically.</div>`;
     return;
   }
   container.innerHTML = insights.map(item => `
-    <div class="glass-card p-6 rounded-xl space-y-3 border-l-4 border-indigo-500">
-      <div class="flex items-center justify-between">
+    <div class="glass-card p-6 rounded-xl space-y-3 border-l-4 ${item.isAiGenerated ? 'border-pink-500' : 'border-indigo-500'}">
+      <div class="flex items-center justify-between gap-2">
         <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">${item.artist}</span>
-          <h4 class="text-base font-bold text-white">${item.campaign}</h4>
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">${escapeHtml(item.artist)}</span>
+          <h4 class="text-base font-bold text-white">${escapeHtml(item.campaign)}</h4>
         </div>
-        <span class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">${item.created_at}</span>
+        <div class="flex items-center gap-2">
+          ${item.isAiGenerated ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 border border-pink-500/30 font-semibold">Gemini AI</span>` : ''}
+          <span class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300">${escapeHtml(item.created_at)}</span>
+        </div>
       </div>
       <div class="text-xs text-slate-300 whitespace-pre-line leading-relaxed pt-2 border-t border-slate-800/80">
-        ${item.insight || ''}
+        ${formatInsightMarkdown(item.insight || '')}
       </div>
     </div>
   `).join('');
@@ -1579,7 +1726,9 @@ function switchTab(tab) {
 
 function logout() {
   APP_DATA = null;
+  AUTH_SESSION = { email: '', password: '', isDemo: false };
   document.getElementById('password-input').value = '';
+  document.getElementById('gemini-status-banner').classList.add('hidden');
   document.getElementById('dashboard-view').classList.add('hidden');
   document.getElementById('login-view').classList.remove('hidden');
 }
