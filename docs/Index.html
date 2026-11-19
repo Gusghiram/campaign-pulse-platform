@@ -502,7 +502,7 @@ body {
 </div>
 
 <script>
-const APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbw8VxsYxCIXZ8TVk4DOYsyme6cC2rrBMW8PJxjhHwM5SxD2GWADjMuWBGzYycc7Erpp/exec';
+const APPS_SCRIPT_API_URL = 'https://script.google.com/macros/s/AKfycbykiJTySS8kkDgOkA2PfCvD687-HnfPs1RDrr3kimpVU_OS_olR4Onc4A4017Wq72Lf/exec';
 let APP_DATA = null;
 let CUMULATIVE_POSTS = [];
 let AUTH_SESSION = { email: '', password: '', isDemo: false };
@@ -802,9 +802,11 @@ async function triggerGeminiInsights() {
         created_at: today,
         isAiGenerated: true,
         insight:
-          `• **Platform & URL Winners:** TikTok leads total reach with 54% of cross-channel views and a 14.6% engagement rate, driven by high share/bookmark velocity on the primary hook URL.\n` +
-          `• **Streaming Conversion:** Spotify accumulated streams grew +125% in the second week, confirming strong short-form video discovery spillover.\n` +
-          `• **Recommended Next Moves:** 1) Pin the top-performing TikTok post and launch a 5-creator duet wave using the bridge audio. 2) Retarget Instagram Reels viewers with a Spotify Canvas teaser.`
+          `• **Insights:** By analyzing the RRSS and streams performance alongside prior campaign learnings, TikTok leads with 54% of total views (14.6% ER) and drives a +125% Week-2 Spotify stream lift—outperforming previous acoustic-only rollouts in save-to-view efficiency.\n` +
+          `• **Recommended Post Types & Creative Angles:** Prioritize 12–18s raw studio/behind-the-scenes chorus hooks and split-screen POV transitions on TikTok/Reels, paired with YouTube Shorts lyric breakdowns for high-intent discovery.\n` +
+          `• **Future Campaign Strategy & Rollout:** Run a 3-wave funnel: Day 1–5 micro-creator sound seeding, Day 6–10 duet/stitch amplification on the top-saving hook URL, and Day 11+ paid Spark Ads driving directly to Spotify.\n` +
+          `• **Audience Segmentation & Targeting:** Split targeting into (1) Warm Engagers (users who saved/shared IG/TikTok clips) for Spotify Canvas retargeting, and (2) Cold Lookalikes built from latin-alt/indie-pop playlist listeners aged 18–29.\n` +
+          `• **Additional Strategic Levers (KPIs & Testing):** A/B test two 3-second opening visual hooks during the first 48 hours and benchmark future releases against a >1.8% save/share-to-view threshold before scaling paid spend.`
       };
 
       APP_DATA.insights.unshift(demoAiInsight);
