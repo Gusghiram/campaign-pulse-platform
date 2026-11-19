@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential
 import google.auth
 import gspread
+from apify_client import ApifyClient
 from google.cloud import bigquery
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -26,6 +27,7 @@ from selenium.webdriver.chrome.service import Service
 # =====================================================================
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-gcp-project-id")
 BQ_DATASET = os.getenv("BQ_DATASET", "music_campaigns")
+APIFY_SECRET = os.getenv("APIFY_SECRET", "my-apify-secret")
 SHEET_ID = os.getenv("SHEET_ID", "1yyri3E5ex6pk414kkal0yH--FqJSeQ8rQPynVOJYP8k")
 CAMPAIGN_CONFIG_TAB = os.getenv("CAMPAIGN_CONFIG_TAB", "Campaign_Schedule")
 CAMPAIGN_LINKS_TAB = os.getenv("CAMPAIGN_LINKS_TAB", "campaign_file")
@@ -44,6 +46,7 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 ALERT_EMAIL_TO = os.getenv("ALERT_EMAIL_TO", "gustavo.hiram.gutierrez@gmail.com")
 
+
 # =====================================================================
 # 2. MULTI-CHANNEL ALERTING (SLACK / WHATSAPP / EMAIL)
 # =====================================================================
@@ -60,7 +63,7 @@ def send_alerts(subject: str, message: str):
             )
         except Exception as e:
             print(f"Webhook alert error: {e}")
-            
+
     # B. WhatsApp via Twilio API (if configured)
     if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and WHATSAPP_TO:
         try:
@@ -77,7 +80,7 @@ def send_alerts(subject: str, message: str):
             )
         except Exception as e:
             print(f"WhatsApp alert error: {e}")
-            
+
     # C. Email via Gmail SMTP
     if SMTP_USER and SMTP_PASSWORD:
         try:
@@ -93,6 +96,7 @@ def send_alerts(subject: str, message: str):
         except Exception as e:
             print(f"Email alert error: {e}")
 
+
 # =====================================================================
 # 3. CAMPAIGN DURATION & ACTIVE WINDOW EVALUATOR
 # =====================================================================
@@ -104,6 +108,7 @@ def parse_sheet_date(val) -> date | None:
         return pd.to_datetime(str(val).strip()).date()
     except Exception:
         return None
+
 
 def is_row_active_today(row: dict, today: date) -> bool:
     """
@@ -130,6 +135,7 @@ def is_row_active_today(row: dict, today: date) -> bool:
         return False
     return True
 
+
 def filter_active_campaign_links(sh: gspread.Spreadsheet, raw_links_df: pd.DataFrame, today: date) -> pd.DataFrame:
     """
     Filters `campaign_file` rows to ONLY those belonging to currently active campaigns.
@@ -142,7 +148,7 @@ def filter_active_campaign_links(sh: gspread.Spreadsheet, raw_links_df: pd.DataF
         schedule_records = sched_ws.get_all_records()
     except gspread.WorksheetNotFound:
         schedule_records = []
-        
+
     if schedule_records:
         sched_df = pd.DataFrame(schedule_records)
         active_campaigns = set()
@@ -166,11 +172,12 @@ def filter_active_campaign_links(sh: gspread.Spreadsheet, raw_links_df: pd.DataF
                         df.at[idx, "artist"] = meta_lookup[c_key]["artist"]
                     if not str(r.get("company", "")).strip():
                         df.at[idx, "company"] = meta_lookup[c_key]["company"]
-                        
+
     if any(col in df.columns for col in ["start_date", "end_date", "duration_days", "active"]):
         mask = df.apply(lambda r: is_row_active_today(r.to_dict(), today), axis=1)
         df = df[mask].copy()
     return df
+
 
 # =====================================================================
 # 4. HEADLESS CHROME DRIVER & HELPERS
@@ -197,6 +204,7 @@ def create_headless_driver() -> webdriver.Chrome:
         return webdriver.Chrome(service=service, options=chrome_options)
     return webdriver.Chrome(options=chrome_options)
 
+
 def parse_metric_number(val) -> int:
     """Converts strings like '12.4K', '1.2M', '1,450', or 'Share' into clean integers."""
     if val is None or val == "":
@@ -214,12 +222,14 @@ def parse_metric_number(val) -> int:
     except Exception:
         return 0
 
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=2, max=10))
 def fetch_page_html(driver: webdriver.Chrome, url: str) -> str:
     """Loads URL in Selenium with automatic retry on transient timeout."""
     driver.get(url.strip())
     time.sleep(2.5)
     return driver.page_source
+
 
 # =====================================================================
 # 5. PLATFORM SCRAPERS
@@ -271,6 +281,67 @@ def scrape_tiktok(driver: webdriver.Chrome, url: str) -> dict:
         "reply": 0,
     }
 
+
+def scrape_tiktok_batch_apify(urls: list[str]) -> dict[str, dict]:
+    """
+    Runs a single Apify Actor call for all TikTok URLs that failed Selenium scraping.
+    Returns a mapping of {original_url: metrics_dict} for successfully scraped items.
+    """
+    unique_urls = list(dict.fromkeys(u.strip() for u in urls if u and u.strip()))
+    if not unique_urls:
+        return {}
+
+    client = ApifyClient(APIFY_SECRET)
+    run_input = {
+        "postURLs": unique_urls,
+        "shouldDownloadVideos": False,
+        "shouldDownloadCovers": False,
+        "shouldDownloadSlideshowImages": False,
+        "commentsPerPost": 0,
+        "scrapeRelatedVideos": False,
+    }
+
+    run = client.actor("clockworks/tiktok-scraper").call(run_input=run_input)
+
+    # Normalize URLs for matching (handles trailing slashes & short-link redirects)
+    norm_to_originals: dict[str, list[str]] = {}
+    for orig in unique_urls:
+        norm = orig.rstrip("/")
+        norm_to_originals.setdefault(norm, []).append(orig)
+
+    results_by_url: dict[str, dict] = {}
+    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+        # Skip error items returned by Apify for private/deleted videos
+        if item.get("error") or (item.get("playCount") is None and item.get("diggCount") is None):
+            continue
+
+        metrics = {
+            "likes": parse_metric_number(item.get("diggCount", 0)),
+            "shares": parse_metric_number(item.get("shareCount", 0)),
+            "comments": parse_metric_number(item.get("commentCount", 0)),
+            "views": parse_metric_number(item.get("playCount", 0)),
+            "bookmarks": parse_metric_number(item.get("collectCount", 0)),
+            "repost": parse_metric_number(item.get("repostCount", 0)),
+            "favorites": 0,
+            "all_reactions": 0,
+            "reply": 0,
+        }
+
+        # Match back to the submitted URL (critical for vm.tiktok.com short links)
+        candidates = [
+            str(item.get("submittedVideoUrl") or "").strip().rstrip("/"),
+            str(item.get("input") or "").strip().rstrip("/"),
+            str(item.get("webVideoUrl") or "").strip().rstrip("/"),
+        ]
+        for cand in candidates:
+            if cand and cand in norm_to_originals:
+                for orig_url in norm_to_originals[cand]:
+                    results_by_url[orig_url] = metrics
+                break
+
+    return results_by_url
+
+
 def scrape_facebook_reel(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
     soup_fb = BeautifulSoup(html, "html.parser")
@@ -293,6 +364,7 @@ def scrape_facebook_reel(driver: webdriver.Chrome, url: str) -> dict:
         except Exception:
             continue
     return res
+
 
 def scrape_facebook_post(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
@@ -323,6 +395,7 @@ def scrape_facebook_post(driver: webdriver.Chrome, url: str) -> dict:
             pass
     return res
 
+
 def scrape_facebook_live(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
     soup_fb_live = BeautifulSoup(html, "html.parser")
@@ -349,6 +422,7 @@ def scrape_facebook_live(driver: webdriver.Chrome, url: str) -> dict:
             pass
     return res
 
+
 def scrape_instagram(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
     soup_ig = BeautifulSoup(html, "html.parser")
@@ -365,6 +439,7 @@ def scrape_instagram(driver: webdriver.Chrome, url: str) -> dict:
             except Exception:
                 continue
     return {"likes": likes, "comments": comments, "views": 0, "shares": 0}
+
 
 def scrape_youtube(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
@@ -404,6 +479,7 @@ def scrape_youtube(driver: webdriver.Chrome, url: str) -> dict:
             continue
     return res
 
+
 def scrape_youtube_shorts(driver: webdriver.Chrome, url: str) -> dict:
     html = fetch_page_html(driver, url)
     soup_yts = BeautifulSoup(html, "html.parser")
@@ -428,6 +504,7 @@ def scrape_youtube_shorts(driver: webdriver.Chrome, url: str) -> dict:
             continue
     return res
 
+
 # =====================================================================
 # 6. BIGQUERY IDEMPOTENT MERGE LOADER & GOVERNANCE SYNC
 # =====================================================================
@@ -450,7 +527,7 @@ def upsert_to_bigquery(bq_client: bigquery.Client, df: pd.DataFrame):
     target_table = f"{PROJECT_ID}.{BQ_DATASET}.fact_rrss_daily"
     job_config = bigquery.LoadJobConfig(write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE)
     bq_client.load_table_from_dataframe(df_bq, staging_table, job_config=job_config).result()
-    
+
     merge_sql = f"""
     MERGE `{target_table}` T
     USING `{staging_table}` S
@@ -467,6 +544,7 @@ def upsert_to_bigquery(bq_client: bigquery.Client, df: pd.DataFrame):
     """
     bq_client.query(merge_sql).result()
     print(f"✅ BigQuery MERGE complete: {len(df_bq)} rows synced to {target_table}")
+
 
 def sync_governance_access(sh: gspread.Spreadsheet, active_df: pd.DataFrame):
     """Ensures every active (artist, company) pair has default admin access in Governance tab."""
@@ -497,6 +575,7 @@ def sync_governance_access(sh: gspread.Spreadsheet, active_df: pd.DataFrame):
     except Exception as e:
         print(f"Governance sync note: {e}")
 
+
 # =====================================================================
 # 7. MAIN ORCHESTRATION ENTRYPOINT
 # =====================================================================
@@ -511,13 +590,13 @@ def main():
         "https://www.googleapis.com/auth/bigquery",
     ]
     creds, _ = google.auth.default(scopes=scopes)
-    
+
     gs_client = gspread.authorize(creds)
     bq_client = bigquery.Client(credentials=creds, project=PROJECT_ID)
     sh = gs_client.open_by_key(SHEET_ID)
     links_ws = sh.worksheet(CAMPAIGN_LINKS_TAB)
     raw_df = pd.DataFrame(links_ws.get_all_records())
-    
+
     # Evaluate Campaign Duration Windows BEFORE starting Chrome
     active_df = filter_active_campaign_links(sh, raw_df, today_date)
     if active_df.empty:
@@ -534,17 +613,19 @@ def main():
         except Exception:
             pass
         sys.exit(0)
-        
+
     active_campaigns_list = (
         active_df["campaign"].unique().tolist()
         if "campaign" in active_df.columns
         else ["Default Campaign"]
     )
     print(f"🎯 Active Campaigns for {today_date}: {active_campaigns_list} ({len(active_df)} rows)")
-    
+
     driver = create_headless_driver()
     scraped_rows = []
     failed_urls = []
+    failed_tiktok_items = []  # Collects (url, campaign, artist) for a single Apify batch call
+
     platform_handlers = {
         "TikTok": ("TikTok", scrape_tiktok),
         "Facebook Reels": ("Facebook Reels", scrape_facebook_reel),
@@ -556,7 +637,7 @@ def main():
         "Youtube Shorts": ("YouTube Shorts", scrape_youtube_shorts),
         "YouTube Shorts": ("YouTube Shorts", scrape_youtube_shorts),
     }
-    
+
     try:
         if {"url", "platform"}.issubset(set(active_df.columns)):
             for _, row in active_df.iterrows():
@@ -586,7 +667,10 @@ def main():
                         "created_at": str(today_date),
                     })
                 except Exception as e:
-                    failed_urls.append((url, str(e)))
+                    if canonical_plat == "TikTok":
+                        failed_tiktok_items.append((url, campaign_name, artist_name))
+                    else:
+                        failed_urls.append((url, str(e)))
         else:
             default_campaign = str(active_df["campaign"].dropna().iloc[0]) if "campaign" in active_df.columns else "Default Campaign"
             default_artist = str(active_df["artist"].dropna().iloc[0]) if "artist" in active_df.columns else "Artist"
@@ -614,10 +698,47 @@ def main():
                             "created_at": str(today_date),
                         })
                     except Exception as e:
-                        failed_urls.append((url, str(e)))
+                        if canonical_plat == "TikTok":
+                            failed_tiktok_items.append((url, default_campaign, default_artist))
+                        else:
+                            failed_urls.append((url, str(e)))
     finally:
         driver.quit()
-        
+
+    # Single batch Apify fallback for any TikTok URLs that failed Selenium
+    if failed_tiktok_items:
+        print(f"🔄 Running single Apify fallback for {len(failed_tiktok_items)} failed TikTok URL(s)...")
+        apify_results = {}
+        try:
+            apify_results = scrape_tiktok_batch_apify([item[0] for item in failed_tiktok_items])
+        except Exception as apify_err:
+            print(f"⚠️ Apify batch call failed: {apify_err}")
+
+        for url, campaign_name, artist_name in failed_tiktok_items:
+            try:
+                metrics = apify_results.get(url)
+                if not metrics:
+                    raise ValueError(f"TikTok stats JSON block not found on page: {url}")
+
+                scraped_rows.append({
+                    "platform": "TikTok",
+                    "url": url,
+                    "likes": metrics.get("likes", 0),
+                    "all_reactions": metrics.get("all_reactions", 0),
+                    "comments": metrics.get("comments", 0),
+                    "shares": metrics.get("shares", 0),
+                    "favorites": metrics.get("favorites", 0),
+                    "views": metrics.get("views", 0),
+                    "repost": metrics.get("repost", 0),
+                    "reply": metrics.get("reply", 0),
+                    "bookmarks": metrics.get("bookmarks", 0),
+                    "campaign": campaign_name,
+                    "artist": artist_name,
+                    "created_at": str(today_date),
+                })
+            except ValueError as ve:
+                failed_urls.append((url, str(ve)))
+
     if not scraped_rows:
         send_alerts(
             "🚨 CRITICAL: Active Campaigns Returned 0 Scraped Rows",
@@ -626,18 +747,18 @@ def main():
             + "\n".join([f"- {u}: {err}" for u, err in failed_urls[:10]]),
         )
         sys.exit(1)
-        
+
     engagement_results = pd.DataFrame(scraped_rows)
     int_cols = ["likes", "all_reactions", "comments", "shares", "favorites", "views", "repost", "reply", "bookmarks"]
     for c in int_cols:
         if c in engagement_results.columns:
             engagement_results[c] = pd.to_numeric(engagement_results[c], errors="coerce").fillna(0).astype(int)
-            
+
     upsert_to_bigquery(bq_client, engagement_results)
-    
+
     if "company" in active_df.columns:
         sync_governance_access(sh, active_df)
-        
+
     try:
         log_ws = sh.worksheet(LOGS_TAB)
         log_ws.append_row([
@@ -649,7 +770,7 @@ def main():
         ])
     except Exception as e:
         print(f"Could not write to {LOGS_TAB} sheet: {e}")
-        
+
     if failed_urls:
         sample = "\n".join([f"• {u} ({err})" for u, err in failed_urls[:5]])
         send_alerts(
@@ -657,6 +778,7 @@ def main():
             f"Successfully loaded {len(engagement_results)} posts to BigQuery for {active_campaigns_list}.\nFailures:\n{sample}",
         )
     print("🎉 Engagement Pipeline Completed Successfully!")
+
 
 if __name__ == "__main__":
     try:
